@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento Técnica PUSH - Dashboard Asistencial</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Librerías de datos, gráficos y QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- ENCABEZADO INSTITUCIONAL -->
+  <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+      
+      <!-- Logo y Título -->
+      <div class="flex items-center gap-4">
+        <img src="Logo-sura.png" alt="SURA" class="h-10 object-contain" onerror="this.style.display='none'">
+        <div class="border-l border-slate-300 pl-4">
+          <h1 class="text-lg font-bold text-blue-900 leading-tight">Seguimiento Técnica PUSH</h1>
+          <p class="text-xs text-slate-500 font-medium">Salud en Casa · Panel de Gestión y Calidad Asistencial</p>
+        </div>
+      </div>
+
+      <!-- Contador Fijo Consolidado del Programa -->
+      <div class="flex items-center bg-blue-50 border border-blue-200 rounded-xl px-4 py-2 gap-4 text-xs">
+        <div>
+          <span class="block text-slate-500 font-medium">Total Programa</span>
+          <span id="contFijoTotal" class="text-base font-extrabold text-blue-900">0</span>
+        </div>
+        <div class="w-px h-8 bg-blue-200"></div>
+        <div>
+          <span class="block text-slate-500 font-medium">Escaneadas</span>
+          <span id="contFijoEscaneadas" class="text-base font-extrabold text-indigo-700">0</span>
+        </div>
+        <div class="w-px h-8 bg-blue-200"></div>
+        <div>
+          <span class="block text-slate-500 font-medium">Completas</span>
+          <span id="contFijoCompletas" class="text-base font-extrabold text-emerald-600">0</span>
+        </div>
+      </div>
+
+      <!-- Navegación por pestañas -->
+      <nav class="flex space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button id="btnTabDashboard" onclick="cambiarPestana('dashboard')" class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all bg-blue-900 text-white shadow">
+          <i class="fa-solid fa-chart-line mr-1.5"></i>Dashboard
+        </button>
+        <button id="btnTabInformes" onclick="cambiarPestana('informes')" class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-blue-900">
+          <i class="fa-solid fa-file-waveform mr-1.5"></i>Informes & Semáforo
+        </button>
+        <button id="btnTabQr" onclick="cambiarPestana('qr')" class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-blue-900">
+          <i class="fa-solid fa-qrcode mr-1.5"></i>Generador & QR
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- ==================== PESTAÑA 1: DASHBOARD ==================== -->
+  <main id="vistaDashboard" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1">
+    
+    <!-- Filtros Superiores -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-3 flex-1">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Filtrar por Cargo</label>
+          <select id="filtroCargo" onchange="aplicarFiltrosDashboard()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-[210px]">
+            <option value="TODOS">Todos los Cargos</option>
+          </select>
+        </div>
+
+        <div class="relative">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Buscar Profesional</label>
+          <div class="relative">
+            <input type="text" id="filtroTexto" oninput="buscarPredictivo(this.value)" placeholder="Escriba nombre o cédula..." autocomplete="off" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg pl-3 pr-8 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-[260px]">
+            <i id="btnLimpiarTexto" onclick="limpiarBuscador()" class="fa-solid fa-circle-xmark absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer hidden"></i>
+          </div>
+          <div id="listaAutocompletado" class="absolute z-20 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto hidden"></div>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button onclick="recargarDatos()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-lg border border-slate-300 transition-all flex items-center gap-1.5">
+          <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+        </button>
+        <button onclick="exportarExcelTabla()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-lg shadow transition-all flex items-center gap-1.5">
+          <i class="fa-solid fa-file-excel"></i> Exportar Excel
+        </button>
+        <button onclick="exportarImagenDashboard()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-lg shadow transition-all flex items-center gap-1.5">
+          <i class="fa-solid fa-image"></i> Descargar Imagen
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenedor Capturable -->
+    <div id="areaCapturaReporte" class="space-y-6">
+      
+      <!-- BARRA DE CONVENCIÓN DE SEMÁFORO -->
+      <div class="bg-white border border-slate-200 rounded-xl px-5 py-3 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
+          <i class="fa-solid fa-traffic-light text-blue-900 text-base"></i>
+          <span>Cómo leer los colores:</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-5 text-xs font-semibold">
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm inline-block"></span>
+            <span class="text-slate-700">Normal y leve (Óptimo)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-sm inline-block"></span>
+            <span class="text-slate-700">Hay que revisarlo (Alerta)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-sm inline-block animate-pulse"></span>
+            <span class="text-rose-700 font-bold">Alarma (se reporta siempre)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 TARJETAS CON SEMÁFORO GLOBAL -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Total Personas que Respondieron -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-blue-600">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de personas que respondieron</p>
+          <h3 id="kpiTotalRespondieron" class="text-3xl font-black text-blue-900 mt-2">0</h3>
+          <p class="text-[11px] text-slate-400 mt-1">Pacientes con encuesta registrada</p>
+        </div>
+
+        <!-- Total Escaneos QR -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-indigo-600">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Escaneos QR</p>
+          <h3 id="kpiEscaneos" class="text-3xl font-black text-indigo-900 mt-2">0</h3>
+          <p class="text-[11px] text-slate-400 mt-1">Intentos iniciados con QR</p>
+        </div>
+
+        <!-- % Efectividad con Semáforo -->
+        <div id="cardSemaforoEfectividad" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-emerald-500">
+          <div class="flex justify-between items-start">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">% Efectividad Global</p>
+            <span id="luzSemaforoEfectividad" class="w-4 h-4 rounded-full bg-emerald-500 shadow"></span>
+          </div>
+          <h3 id="kpiEfectividad" class="text-3xl font-black text-slate-800 mt-2">0.0%</h3>
+          <p id="txtSemaforoEfectividad" class="text-[11px] font-bold mt-1 text-emerald-600">Normal y leve</p>
+        </div>
+
+        <!-- Estado de Seguridad Asistencial -->
+        <div id="cardSemaforoSeguridad" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-4 border-l-emerald-500">
+          <div class="flex justify-between items-start">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Seguridad Asistencial</p>
+            <span id="luzSemaforoSeguridad" class="w-4 h-4 rounded-full bg-emerald-500 shadow"></span>
+          </div>
+          <h3 id="kpiTasaSinMolestias" class="text-3xl font-black text-slate-800 mt-2">0.0%</h3>
+          <p id="txtSemaforoSeguridad" class="text-[11px] font-bold mt-1 text-emerald-600">Sin alertas clínicas</p>
+        </div>
+
+      </div>
+
+      <!-- Gráficos de Anillos -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 text-center">¿La aplicación del medicamento fue tranquila y sin afán?</h4>
+          <div class="w-full h-56 max-w-xs relative flex items-center justify-center">
+            <canvas id="chartPregunta1"></canvas>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 text-center">¿Presentó dolor o molestias posteriores?</h4>
+          <div class="w-full h-56 max-w-xs relative flex items-center justify-center">
+            <canvas id="chartPregunta2"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla Nominal Detallada con Semáforo por Profesional -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+          <h4 class="font-bold text-slate-700 text-sm">Rendimiento y Semáforo por Profesional Asistencial</h4>
+          <span id="contadorTabla" class="text-xs font-semibold text-slate-500">Mostrando 0 colaboradores</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100/70 text-slate-600 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
+                <th class="p-3">Documento</th>
+                <th class="p-3">Nombre y Apellido</th>
+                <th class="p-3">Cargo</th>
+                <th class="p-3 text-center">Escaneos</th>
+                <th class="p-3 text-center">Completadas</th>
+                <th class="p-3 text-center">% Efectividad</th>
+                <th class="p-3 text-center">Estado Semáforo</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaDashboard" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== PESTAÑA 2: INFORMES & SEMÁFORO DETALLADO ==================== -->
+  <main id="vistaInformes" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 hidden space-y-6">
+    
+    <!-- Filtros y Opciones de Exportación -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-file-waveform text-blue-900 text-lg"></i>
+          <h3 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Módulo de Informes Estadísticos y Auditoría</h3>
+        </div>
+        <button onclick="exportarExcelInformes()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow transition-all flex items-center gap-1.5">
+          <i class="fa-solid fa-file-excel"></i> Descargar Informe Completo con Semáforo (.xlsx)
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nivel de Análisis</label>
+          <select id="infTipoVista" onchange="cambiarTipoVistaInforme()" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
+            <option value="GENERAL">Estadística General</option>
+            <option value="CARGO">Por Cargo Asistencial</option>
+            <option value="PROFESIONAL">Por Profesional Individual</option>
+          </select>
+        </div>
+
+        <div id="columnaSelectorDinamico" class="hidden">
+          <label id="lblSelectorDinamico" class="block text-xs font-bold text-slate-600 mb-1">Seleccionar</label>
+          <select id="infSelectorDinamico" onchange="renderizarInformesDetallados()" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Desde Fecha</label>
+          <input type="date" id="fechaDesde" onchange="renderizarInformesDetallados()" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Hasta Fecha</label>
+          <input type="date" id="fechaHasta" onchange="renderizarInformesDetallados()" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+      </div>
+    </div>
+
+    <!-- MÓDULO DE ALERTAMIENTOS PRIORIZADOS (DE MÁS CRÍTICAS A MÁS BUENAS) -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-bell text-rose-600"></i>
+            Matriz de Alertamientos (Priorización Asistencial)
+          </h4>
+          <p class="text-xs text-slate-500">Ordenado estrictamente desde los casos más críticos hasta los desempeños óptimos.</p>
+        </div>
+        <span class="text-[11px] font-bold text-slate-400">Orden: 🔴 Alarma ➔ 🟡 Revisión ➔ 🟢 Óptimo</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100/80 text-slate-600 uppercase font-bold tracking-wider border-b border-slate-200">
+              <th class="p-2.5">Nivel Prioridad</th>
+              <th class="p-2.5">Profesional / Documento</th>
+              <th class="p-2.5">Cargo</th>
+              <th class="p-2.5 text-center">Escaneos vs Respuestas</th>
+              <th class="p-2.5 text-center">% Efectividad</th>
+              <th class="p-2.5 text-center">Alertas de Molestias</th>
+              <th class="p-2.5">Acción Recomendada</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoMatrizAlertas" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Desglose Estadístico Pregunta por Pregunta con Semáforo -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2">
+        <i class="fa-solid fa-list-check text-blue-900 mr-1.5"></i>Resultados y Semáforo por Pregunta
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Pregunta 1 -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-start mb-2">
+            <p class="text-xs font-bold text-slate-800">1. ¿La aplicación del medicamento fue tranquila y sin afán?</p>
+            <span id="semaforoPregunta1" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1"></span>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between font-semibold"><span class="text-emerald-700">🟢 SÍ (Tranquila y adecuada):</span><span id="infP1Si">0 (0%)</span></div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden"><div id="barP1Si" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div></div>
+            <div class="flex justify-between font-semibold pt-1"><span class="text-rose-600">🔴 NO (Con afán / Inadecuada):</span><span id="infP1No">0 (0%)</span></div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden"><div id="barP1No" class="bg-rose-500 h-full w-0 transition-all duration-500"></div></div>
+          </div>
+        </div>
+
+        <!-- Pregunta 2 -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-start mb-2">
+            <p class="text-xs font-bold text-slate-800">2. Después de la aplicación, ¿tuvo algún síntoma o dolor?</p>
+            <span id="semaforoPregunta2" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1"></span>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between font-semibold"><span class="text-emerald-700">🟢 NO (Sin dolor ni molestias):</span><span id="infP2No">0 (0%)</span></div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden"><div id="barP2No" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div></div>
+            <div class="flex justify-between font-semibold pt-1"><span class="text-rose-600">🔴 SÍ (Alarma clínica - Molestia):</span><span id="infP2Si">0 (0%)</span></div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden"><div id="barP2Si" class="bg-rose-500 h-full w-0 transition-all duration-500"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Módulo de Auditoría: Escaneos QR sin Encuesta Diligenciada -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-200 bg-rose-50 flex justify-between items-center">
+        <div>
+          <h4 class="font-bold text-rose-900 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+            Trazabilidad de QR Escaneados SIN Encuesta Realizada
+          </h4>
+          <p class="text-[11px] text-rose-700">Pacientes que abrieron el QR pero no completaron la encuesta (Prioridad 🔴 Alarma).</p>
+        </div>
+        <span id="contadorFugas" class="text-xs font-bold bg-white text-rose-700 border border-rose-200 px-3 py-1 rounded-full">0 casos</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
+              <th class="p-3">Fecha y Hora</th>
+              <th class="p-3">Documento</th>
+              <th class="p-3">Nombre del Profesional</th>
+              <th class="p-3">Cargo</th>
+              <th class="p-3 text-center">Estado Semáforo</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaFugas" class="divide-y divide-slate-100 text-xs"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== PESTAÑA 3: GENERADOR Y GESTIÓN DE QR ==================== -->
+  <main id="vistaQr" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 hidden space-y-8">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div class="border-b border-slate-200 pb-3 mb-6">
+        <h2 class="text-lg font-bold text-slate-800">Generar Código QR para Profesional</h2>
+        <p class="text-xs text-slate-500">Ingrese los datos del colaborador. Los campos inician en blanco.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Cédula del Profesional *</label>
+            <input type="number" id="qrDocumento" placeholder="" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Nombre y Apellido</label>
+            <input type="text" id="qrNombre" placeholder="" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Cargo</label>
+            <input type="text" id="qrCargo" placeholder="" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <button onclick="generarCodigoQR()" class="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold py-2.5 rounded-lg transition-all shadow text-xs flex items-center justify-center gap-2">
+            <i class="fa-solid fa-qrcode"></i> Generar Código QR
+          </button>
+        </div>
+
+        <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-6 min-h-[280px]">
+          <div id="contenedorQrCanvas" class="p-3 bg-white rounded-lg shadow-sm"></div>
+          <p id="qrEtiquetaNombre" class="text-sm font-bold text-slate-800 mt-3 text-center"></p>
+          <p id="qrEtiquetaCargo" class="text-xs text-slate-500 text-center"></p>
+          <button id="btnDescargarQr" onclick="descargarImagenQR()" class="hidden mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition-all flex items-center gap-2">
+            <i class="fa-solid fa-download"></i> Descargar Imagen PNG
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registro de Códigos QR Emitidos -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm">Registro de Códigos QR Emitidos</h3>
+          <p class="text-xs text-slate-500">Administre el estado de los QR generados o vuelva a descargarlos cuando lo requiera.</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-100/70 text-slate-600 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
+              <th class="p-3">Cédula</th>
+              <th class="p-3">Colaborador</th>
+              <th class="p-3">Cargo</th>
+              <th class="p-3 text-center">Estado</th>
+              <th class="p-3 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaQRs" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- LÓGICA JAVASCRIPT -->
+  <script>
+    const URL_BASE_ESCANEO = "https://salud-en-casa.github.io/push-sura/?doc=";
+    const URL_CSV_TRAZABILIDAD = "TU_URL_GOOGLE_SHEETS_CSV";
+    const URL_CSV_FORMS = "TU_URL_MICROSOFT_FORMS_CSV";
+
+    let datosPersonal = [
+      { doc: "1042066182", nombre: "CRISTIAN CAMILO ROMAN MEJIA", cargo: "AGUDOS GESTOR", activo: true },
+      { doc: "17903062", nombre: "JAIME EDUARDO MORA GUERRERO", cargo: "AGUDOS RUTA", activo: true },
+      { doc: "1000763284", nombre: "JUAN PABLO GARCES RESTREPO", cargo: "CHER", activo: true },
+      { doc: "1033342533", nombre: "KELLY FERNANDA ROJAS VALLE", cargo: "CHER", activo: true },
+      { doc: "1152201875", nombre: "LULY MARCELA QUIÑONES SANCHEZ", cargo: "AGUDOS LABORATORIO", activo: true },
+      { doc: "43463446", nombre: "MARIA LILIANA BETANCUR NARANJO", cargo: "Tracking", activo: true }
+    ];
+
+    let datosEscaneos = [
+      { idScan: "1", doc: "1042066182", fechaHora: "2026-11-04 08:30" },
+      { idScan: "2", doc: "17903062", fechaHora: "2026-11-04 09:15" },
+      { idScan: "3", doc: "1000763284", fechaHora: "2026-11-05 10:20" },
+      { idScan: "4", doc: "1033342533", fechaHora: "2026-11-05 11:45" },
+      { idScan: "5", doc: "43463446", fechaHora: "2026-11-05 14:10" }
+    ];
+
+    let datosForms = [
+      { doc: "1042066182", tranquila: "SI", molestia: "NO", fechaHora: "2026-11-04 08:35" },
+      { doc: "1152201875", tranquila: "NO", molestia: "SI", fechaHora: "2026-11-05 12:00" }
+    ];
+
+    let chartInstance1 = null;
+    let chartInstance2 = null;
+
+    // Regla de Semáforo
+    function obtenerSemaforo(valor, tipo = "efectividad") {
+      const v = Number(valor);
+      if (tipo === "efectividad" || tipo === "positiva") {
+        if (v >= 80) return { texto: "Normal y leve", color: "text-emerald-700 bg-emerald-100 border-emerald-300", dot: "bg-emerald-500", nivel: 3 };
+        if (v >= 60) return { texto: "Hay que revisarlo", color: "text-amber-800 bg-amber-100 border-amber-300", dot: "bg-amber-400", nivel: 2 };
+        return { texto: "Alarma (se reporta siempre)", color: "text-rose-800 bg-rose-100 border-rose-300", dot: "bg-rose-500", nivel: 1 };
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      cargarCargosEnFiltro();
+      actualizarContadorFijo();
+      renderizarDashboard();
+      renderizarTablaQRs();
+      cambiarTipoVistaInforme();
+    });
+
+    function cambiarPestana(pestana) {
+      document.getElementById('vistaDashboard').classList.add('hidden');
+      document.getElementById('vistaInformes').classList.add('hidden');
+      document.getElementById('vistaQr').classList.add('hidden');
+
+      const bDash = document.getElementById('btnTabDashboard');
+      const bInf = document.getElementById('btnTabInformes');
+      const bQr = document.getElementById('btnTabQr');
+
+      const clsInactivo = "px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-blue-900";
+      const clsActivo = "px-3.5 py-2 rounded-lg text-xs font-bold transition-all bg-blue-900 text-white shadow";
+
+      bDash.className = clsInactivo;
+      bInf.className = clsInactivo;
+      bQr.className = clsInactivo;
+
+      if (pestana === 'dashboard') {
+        document.getElementById('vistaDashboard').classList.remove('hidden');
+        bDash.className = clsActivo;
+        renderizarDashboard();
+      } else if (pestana === 'informes') {
+        document.getElementById('vistaInformes').classList.remove('hidden');
+        bInf.className = clsActivo;
+        renderizarInformesDetallados();
+      } else if (pestana === 'qr') {
+        document.getElementById('vistaQr').classList.remove('hidden');
+        bQr.className = clsActivo;
+        renderizarTablaQRs();
+      }
+    }
+
+    function actualizarContadorFijo() {
+      const escaneadas = datosEscaneos.length;
+      const completas = datosForms.length;
+      document.getElementById('contFijoTotal').innerText = escaneadas + completas;
+      document.getElementById('contFijoEscaneadas').innerText = escaneadas;
+      document.getElementById('contFijoCompletas').innerText = completas;
+      document.getElementById('kpiTotalRespondieron').innerText = completas;
+    }
+
+    function cargarCargosEnFiltro() {
+      const select = document.getElementById('filtroCargo');
+      const cargos = [...new Set(datosPersonal.map(p => p.cargo))].sort();
+      select.innerHTML = '<option value="TODOS">Todos los Cargos</option>';
+      cargos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        select.appendChild(opt);
+      });
+    }
+
+    function buscarPredictivo(texto) {
+      const box = document.getElementById('listaAutocompletado');
+      const btnX = document.getElementById('btnLimpiarTexto');
+      const q = texto.toLowerCase().trim();
+
+      if (q.length > 0) btnX.classList.remove('hidden'); else btnX.classList.add('hidden');
+
+      if (q.length < 2) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        renderizarDashboard();
+        return;
+      }
+
+      const coincidencias = datosPersonal.filter(p => p.nombre.toLowerCase().includes(q) || p.doc.includes(q));
+
+      if (coincidencias.length === 0) {
+        box.innerHTML = '<div class="p-3 text-xs text-slate-400 text-center">No hay coincidencias</div>';
+      } else {
+        box.innerHTML = coincidencias.map(p => `
+          <div onclick="seleccionarProfesional('${p.doc}')" class="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer flex justify-between border-b border-slate-100 last:border-b-0">
+            <div>
+              <span class="font-bold text-slate-800">${p.nombre}</span>
+              <span class="text-slate-400 block text-[10px]">C.C: ${p.doc}</span>
+            </div>
+            <span class="text-[10px] text-blue-700 font-semibold self-center">${p.cargo}</span>
+          </div>
+        `).join('');
+      }
+      box.classList.remove('hidden');
+      renderizarDashboard();
+    }
+
+    function seleccionarProfesional(doc) {
+      const p = datosPersonal.find(x => x.doc === doc);
+      if (p) {
+        document.getElementById('filtroTexto').value = p.nombre;
+        document.getElementById('listaAutocompletado').classList.add('hidden');
+        renderizarDashboard();
+      }
+    }
+
+    function limpiarBuscador() {
+      document.getElementById('filtroTexto').value = '';
+      document.getElementById('btnLimpiarTexto').classList.add('hidden');
+      document.getElementById('listaAutocompletado').classList.add('hidden');
+      renderizarDashboard();
+    }
+
+    function aplicarFiltrosDashboard() {
+      renderizarDashboard();
+    }
+
+    function renderizarDashboard() {
+      const cargoFiltro = document.getElementById('filtroCargo').value;
+      const textoFiltro = document.getElementById('filtroTexto').value.toLowerCase().trim();
+
+      const personalFiltrado = datosPersonal.filter(p => {
+        const coincideCargo = (cargoFiltro === "TODOS" || p.cargo === cargoFiltro);
+        const coincideTexto = (p.nombre.toLowerCase().includes(textoFiltro) || p.doc.includes(textoFiltro));
+        return coincideCargo && coincideTexto;
+      });
+
+      let escaneosGlobal = 0;
+      let completadasGlobal = 0;
+      let p1Si = 0, p1No = 0;
+      let p2Si = 0, p2No = 0;
+
+      const cuerpo = document.getElementById('cuerpoTablaDashboard');
+      cuerpo.innerHTML = '';
+
+      personalFiltrado.forEach(p => {
+        const escColab = datosEscaneos.filter(e => String(e.doc).trim() === String(p.doc).trim()).length;
+        const formsColab = datosForms.filter(f => String(f.doc).trim() === String(p.doc).trim());
+        const compColab = formsColab.length;
+        const efectividad = escColab > 0 ? ((compColab / escColab) * 100).toFixed(1) : "0.0";
+        const sem = obtenerSemaforo(efectividad, "efectividad");
+
+        escaneosGlobal += escColab;
+        completadasGlobal += compColab;
+
+        formsColab.forEach(f => {
+          if (String(f.tranquila).toUpperCase() === "SI") p1Si++; else p1No++;
+          if (String(f.molestia).toUpperCase() === "SI") p2Si++; else p2No++;
+        });
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+          <td class="p-3 font-mono text-slate-700">${p.doc}</td>
+          <td class="p-3 font-semibold text-slate-900">${p.nombre}</td>
+          <td class="p-3 text-slate-600"><span class="px-2 py-0.5 rounded-full bg-slate-100 text-xs border border-slate-200">${p.cargo}</span></td>
+          <td class="p-3 text-center font-bold text-slate-700">${escColab}</td>
+          <td class="p-3 text-center font-bold text-slate-700">${compColab}</td>
+          <td class="p-3 text-center font-black">${efectividad}%</td>
+          <td class="p-3 text-center">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${sem.color}">
+              <span class="w-2.5 h-2.5 rounded-full ${sem.dot}"></span>
+              ${sem.texto}
+            </span>
+          </td>
+        `;
+        cuerpo.appendChild(tr);
+      });
+
+      // KPIs y Semáforos Globales
+      document.getElementById('kpiEscaneos').innerText = escaneosGlobal;
+      document.getElementById('kpiTotalRespondieron').innerText = completadasGlobal;
+      const efectividadTotal = escaneosGlobal > 0 ? ((completadasGlobal / escaneosGlobal) * 100).toFixed(1) : "0.0";
+      document.getElementById('kpiEfectividad').innerText = `${efectividadTotal}\%`;  const semGlobalEf = obtenerSemaforo(efectividadTotal, "efectividad"); document.getElementById('luzSemaforoEfectividad').className = `w-4 h-4 rounded-full ${semGlobalEf.dot} shadow`;
+      document.getElementById('txtSemaforoEfectividad').className = `text-[11px] font-bold mt-1 ${semGlobalEf.color.split(' ')[0]}`;
+      document.getElementById('txtSemaforoEfectividad').innerText = semGlobalEf.texto;
+
+      // Seguridad: tasa de pacientes que NO presentaron dolor/molestias
+      const totalEnc = p2Si + p2No;
+      const tasaSinDolor = totalEnc > 0 ? ((p2No / totalEnc) * 100).toFixed(1) : "100.0";
+      document.getElementById('kpiTasaSinMolestias').innerText = `${tasaSinDolor}\%`; const semGlobalSeg = obtenerSemaforo(tasaSinDolor, "positiva"); document.getElementById('luzSemaforoSeguridad').className = `w-4 h-4 rounded-full ${semGlobalSeg.dot} shadow`;
+      document.getElementById('txtSemaforoSeguridad').className = `text-[11px] font-bold mt-1 ${semGlobalSeg.color.split(' ')[0]}`; document.getElementById('txtSemaforoSeguridad').innerText = semGlobalSeg.texto;  document.getElementById('contadorTabla').innerText = `Mostrando ${personalFiltrado.length} colaboradores`;
+
+      dibujarAnillo('chartPregunta1', ['Tranquila (SÍ)', 'Con afán (NO)'], [p1Si, p1No], ['#10B981', '#EF4444'], chartInstance1, inst => chartInstance1 = inst);
+      dibujarAnillo('chartPregunta2', ['Con dolor (SÍ)', 'Sin molestias (NO)'], [p2Si, p2No], ['#F59E0B', '#3B82F6'], chartInstance2, inst => chartInstance2 = inst);
+    }
+
+    function dibujarAnillo(canvasId, labels, data, colors, instanciaActual, callbackSet) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (instanciaActual) instanciaActual.destroy();
+      const nuevoChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: colors,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          cutout: '70%'
+        }
+      });
+      callbackSet(nuevoChart);
+    }
+
+    // ==================== INFORMES & SEMÁFORO DETALLADO ====================
+    function cambiarTipoVistaInforme() {
+      const tipo = document.getElementById('infTipoVista').value;
+      const colSelector = document.getElementById('columnaSelectorDinamico');
+      const lblSelector = document.getElementById('lblSelectorDinamico');
+      const selDinamico = document.getElementById('infSelectorDinamico');
+
+      if (tipo === "GENERAL") {
+        colSelector.classList.add('hidden');
+      } else if (tipo === "CARGO") {
+        colSelector.classList.remove('hidden');
+        lblSelector.innerText = "Seleccionar Cargo";
+        const cargos = [...new Set(datosPersonal.map(p => p.cargo))].sort();
+        selDinamico.innerHTML = cargos.map(c => `<option value="${c}">${c}</option>`).join('');
+      } else if (tipo === "PROFESIONAL") {
+        colSelector.classList.remove('hidden');
+        lblSelector.innerText = "Seleccionar Profesional";
+        const pro = [...datosPersonal].sort((a,b) => a.nombre.localeCompare(b.nombre));
+        selDinamico.innerHTML = pro.map(p => `<option value="${p.doc}">${p.nombre} (${p.cargo})</option>`).join('');
+      }
+      renderizarInformesDetallados();
+    }
+
+    function renderizarInformesDetallados() {
+      const tipoVista = document.getElementById('infTipoVista').value;
+      const valorDinamico = document.getElementById('infSelectorDinamico').value;
+      const fDesde = document.getElementById('fechaDesde').value;
+      const fHasta = document.getElementById('fechaHasta').value;
+
+      let encuestasFiltradas = datosForms.filter(f => {
+        let coincide = true;
+        const colab = datosPersonal.find(p => p.doc === f.doc);
+        if (tipoVista === "CARGO" && colab && colab.cargo !== valorDinamico) coincide = false;
+        if (tipoVista === "PROFESIONAL" && f.doc !== valorDinamico) coincide = false;
+        if (f.fechaHora) {
+          const fechaSolo = f.fechaHora.split(' ')[0];
+          if (fDesde && fechaSolo < fDesde) coincide = false;
+          if (fHasta && fechaSolo > fHasta) coincide = false;
+        }
+        return coincide;
+      });
+
+      const totalEnc = encuestasFiltradas.length;
+      let p1Si = 0, p1No = 0;
+      let p2Si = 0, p2No = 0;
+
+      encuestasFiltradas.forEach(f => {
+        if (String(f.tranquila).toUpperCase() === "SI") p1Si++; else p1No++;
+        if (String(f.molestia).toUpperCase() === "SI") p2Si++; else p2No++;
+      });
+
+      const pctP1Si = totalEnc > 0 ? ((p1Si / totalEnc) * 100).toFixed(1) : "0.0";
+      const pctP1No = totalEnc > 0 ? ((p1No / totalEnc) * 100).toFixed(1) : "0.0";
+      const pctP2No = totalEnc > 0 ? ((p2No / totalEnc) * 100).toFixed(1) : "0.0";
+      const pctP2Si = totalEnc > 0 ? ((p2Si / totalEnc) * 100).toFixed(1) : "0.0";
+
+      // Barras y porcentajes
+      document.getElementById('infP1Si').innerText = `${p1Si} (${pctP1Si}%)`;
+      document.getElementById('barP1Si').style.width = `${pctP1Si}\%`; document.getElementById('infP1No').innerText = `${p1No} (${pctP1No}\%)`; document.getElementById('barP1No').style.width = `${pctP1No}%`;
+
+      document.getElementById('infP2No').innerText = `${p2No} (${pctP2No}%)`;
+      document.getElementById('barP2No').style.width = `${pctP2No}\%`; document.getElementById('infP2Si').innerText = `${p2Si} (${pctP2Si}\%)`; document.getElementById('barP2Si').style.width = `${pctP2Si}%`;
+
+      // Badges de semáforo en preguntas
+      const semP1 = obtenerSemaforo(pctP1Si, "positiva");
+      const elSemP1 = document.getElementById('semaforoPregunta1');
+      elSemP1.className = `px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${semP1.color}`;
+      elSemP1.innerHTML = `<span class="w-2 h-2 rounded-full ${semP1.dot} inline-block"></span> ${semP1.texto}`;
+
+      const semP2 = obtenerSemaforo(pctP2No, "positiva");
+      const elSemP2 = document.getElementById('semaforoPregunta2');
+      elSemP2.className = `px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${semP2.color}`;
+      elSemP2.innerHTML = `<span class="w-2 h-2 rounded-full ${semP2.dot} inline-block"></span> ${semP2.texto}`;
+
+      // MATRIZ DE ALERTAMIENTOS (ORDENADO DESDE LO MÁS CRÍTICO A LO MEJOR)
+      renderizarMatrizAlertas();
+
+      // Auditoría Fugas
+      renderizarAuditoriaFugas(fDesde, fHasta, tipoVista, valorDinamico);
+    }
+
+    function renderizarMatrizAlertas() {
+      const cuerpo = document.getElementById('cuerpoMatrizAlertas');
+      cuerpo.innerHTML = '';
+
+      // Compilar datos por colaborador con nivel de severidad
+      let matriz = datosPersonal.map(p => {
+        const esc = datosEscaneos.filter(e => e.doc === p.doc).length;
+        const comp = datosForms.filter(f => f.doc === p.doc).length;
+        const molestias = datosForms.filter(f => f.doc === p.doc && String(f.molestia).toUpperCase() === "SI").length;
+        const ef = esc > 0 ? (comp / esc) * 100 : 0;
+        const sem = obtenerSemaforo(ef, "efectividad");
+
+        let accion = "Seguimiento periódico";
+        let prioridad = sem.nivel; // 1: Alarma (Rojo), 2: Revisar (Amarillo), 3: Normal (Verde)
+
+        if (molestias > 0) {
+          prioridad = 1; // Prioridad crítica inmediata
+          accion = "Auditoría asistencial urgente por dolor/molestia reportada";
+        } else if (sem.nivel === 1) {
+          accion = "Retroalimentación operativa: alta fuga de escaneos sin encuesta";
+        } else if (sem.nivel === 2) {
+          accion = "Revisar tiempos de atención y motivación al paciente";
+        }
+
+        return { ...p, esc, comp, ef: ef.toFixed(1), molestias, sem, prioridad, accion };
+      });
+
+      // Ordenar: primero los más críticos (prioridad 1), luego 2, luego 3
+      matriz.sort((a, b) => a.prioridad - b.prioridad || Number(a.ef) - Number(b.ef));
+
+      matriz.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = item.prioridad === 1 ? "bg-rose-50/40 hover:bg-rose-50" : "hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="p-2.5">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black border ${item.sem.color}">
+              <span class="w-2 h-2 rounded-full ${item.sem.dot}"></span>
+              ${item.sem.texto}
+            </span>
+          </td>
+          <td class="p-2.5 font-bold text-slate-900">${item.nombre} <span class="text-slate-400 block text-[10px] font-normal">C.C: ${item.doc}</span></td>
+          <td class="p-2.5 text-slate-600">${item.cargo}</td>
+          <td class="p-2.5 text-center font-semibold">${item.esc} /${item.comp}</td>
+          <td class="p-2.5 text-center font-black">${item.ef}%</td>
+          <td class="p-2.5 text-center font-bold ${item.molestias > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-400'}">${item.molestias}</td>
+          <td class="p-2.5 font-medium ${item.prioridad === 1 ? 'text-rose-700 font-bold' : 'text-slate-600'}">${item.accion}</td>
+        `;
+        cuerpo.appendChild(tr);
+      });
+    }
+
+    function renderizarAuditoriaFugas(fDesde, fHasta, tipoVista, valorDinamico) {
+      let escaneosFiltrados = datosEscaneos.filter(e => {
+        let coincide = true;
+        const colab = datosPersonal.find(p => p.doc === e.doc);
+        if (tipoVista === "CARGO" && colab && colab.cargo !== valorDinamico) coincide = false;
+        if (tipoVista === "PROFESIONAL" && e.doc !== valorDinamico) coincide = false;
+        if (e.fechaHora) {
+          const fechaSolo = e.fechaHora.split(' ')[0];
+          if (fDesde && fechaSolo < fDesde) coincide = false;
+          if (fHasta && fechaSolo > fHasta) coincide = false;
+        }
+        return coincide;
+      });
+
+      let encuestasRestantes = [...datosForms];
+      let escaneosSinEncuesta = [];
+
+      escaneosFiltrados.forEach(esc => {
+        const idx = encuestasRestantes.findIndex(enc => enc.doc === esc.doc);
+        if (idx !== -1) {
+          encuestasRestantes.splice(idx, 1);
+        } else {
+          escaneosSinEncuesta.push(esc);
+        }
+      });
+
+      document.getElementById('contadorFugas').innerText = `${escaneosSinEncuesta.length} casos`;
+      const cuerpoFugas = document.getElementById('cuerpoTablaFugas');
+      cuerpoFugas.innerHTML = '';
+
+      if (escaneosSinEncuesta.length === 0) {
+        cuerpoFugas.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin alertas: No hay escaneos pendientes o incompletos.</td></tr>`;
+      } else {
+        escaneosSinEncuesta.forEach(esc => {
+          const prof = datosPersonal.find(p => p.doc === esc.doc) || { nombre: "No Registrado", cargo: "N/A" };
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-rose-50/50 transition-colors";
+          tr.innerHTML = `
+            <td class="p-3 font-mono text-slate-600 font-semibold">${esc.fechaHora || 'Sin registro'}</td>
+            <td class="p-3 font-mono text-slate-700">${esc.doc}</td>
+            <td class="p-3 font-bold text-slate-800">${prof.nombre}</td>
+            <td class="p-3 text-slate-600">${prof.cargo}</td>
+            <td class="p-3 text-center">
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] border border-rose-300">
+                <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                Alarma (se reporta siempre)
+              </span>
+            </td>
+          `;
+          cuerpoFugas.appendChild(tr);
+        });
+      }
+    }
+
+    // ==================== GENERADOR DE QR ====================
+    function generarCodigoQR() {
+      const doc = document.getElementById('qrDocumento').value.trim();
+      const nombre = document.getElementById('qrNombre').value.trim();
+      const cargo = document.getElementById('qrCargo').value.trim();
+      const contenedor = document.getElementById('contenedorQrCanvas');
+
+      if (!doc) {
+        alert("Por favor ingrese el número de cédula.");
+        return;
+      }
+
+      contenedor.innerHTML = "";
+      new QRCode(contenedor, {
+        text: `${URL_BASE_ESCANEO}${doc}`, width: 170, height: 170, colorDark: "#0F172A", colorLight: "#FFFFFF", correctLevel: QRCode.CorrectLevel.H });  document.getElementById('qrEtiquetaNombre').innerText = nombre \vert{}\vert{} `Cédula: ${doc}`;
+      document.getElementById('qrEtiquetaCargo').innerText = cargo || "Personal Asistencial";
+      document.getElementById('btnDescargarQr').classList.remove('hidden');
+
+      const existente = datosPersonal.find(p => p.doc === doc);
+      if (!existente) {
+        datosPersonal.push({
+          doc: doc,
+          nombre: nombre || `Colaborador ${doc}`, cargo: cargo \vert{}\vert{} "Sin Cargo", activo: true }); cargarCargosEnFiltro(); } renderizarTablaQRs(); }  function descargarImagenQR() { const contenedor = document.getElementById('contenedorQrCanvas'); const img = contenedor.querySelector('img'); const doc = document.getElementById('qrDocumento').value.trim() \vert{}\vert{} 'Colaborador'; let link = document.createElement('a'); link.download = `QR_PUSH_${doc}.png`;
+      link.href = img ? img.src : contenedor.querySelector('canvas').toDataURL('image/png');
+      link.click();
+    }
+
+    function renderizarTablaQRs() {
+      const cuerpo = document.getElementById('cuerpoTablaQRs');
+      cuerpo.innerHTML = '';
+      datosPersonal.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+          <td class="p-3 font-mono text-slate-700">${p.doc}</td>
+          <td class="p-3 font-semibold text-slate-900">${p.nombre}</td>
+          <td class="p-3 text-slate-600">${p.cargo}</td>
+          <td class="p-3 text-center">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold ${p.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+              ${p.activo ? 'ACTIVO' : 'INACTIVO'}
+            </span>
+          </td>
+          <td class="p-3 text-center space-x-1.5">
+            <button onclick="descargarQRPersonal('${p.doc}', '${p.nombre}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded border border-blue-200 text-xs font-
