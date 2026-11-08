@@ -1753,29 +1753,31 @@
     }
 
     function recargarDatos(mostrarAlerta = true) {
-      const urlConAntiCache = `${URL_CSV_TRAZABILIDAD}&t=${new Date().getTime()}`;
-      Papa.parse(urlConAntiCache, {
-        download: true,
-        header: true,
-        complete: function(res) {
-          if (res.data && res.data.length > 0) {
-            datosEscaneos = res.data.map((r, i) => ({
-              idScan: String(i + 1),
-              doc: String(r["Documento Colaborador"] || r.doc || '').trim(),
-              fechaHora: r["Fecha y Hora"] || r["Marca temporal"] || r.fecha || ''
-            })).filter(x => x.doc);
-          }
-          actualizarTodoElSistema();
-          if (mostrarAlerta) {
-            const val = obtenerEscaneosOficiales().length;
-            alert(`¡Sincronización con Google Sheets completada! Se registran ${val} escaneos oficiales válidos.`);
-          }
-        },
-        error: function(err) {
-          if (mostrarAlerta) alert("Error al sincronizar con Google Sheets: " + err.message);
+    const urlConAntiCache = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ9kpNZw4jSMTANmiqQrWI6GAUrnCjImwXaNeq6Cepmm2DhlEBIhD9EOiRMnpmcSRUYKgpPqyDs9Oh4/pub?output=csv&t=" + new Date().getTime();
+    Papa.parse(urlConAntiCache, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(res) {
+        if (res.data && res.data.length > 0) {
+          datosEscaneos = res.data.map((r, i) => ({
+            idScan: String(i + 1),
+            doc: String(r["Documento Colaborador"] || r.doc || '').trim(),
+            fechaHora: r["Fecha y Hora"] || r["Marca temporal"] || r.fecha || ''
+          })).filter(x => x.doc);
         }
-      });
-    }
+        actualizarTodoElSistema();
+        if (mostrarAlerta) {
+          const val = obtenerEscaneosOficiales().length;
+          alert(`¡Sincronización con Google Sheets completada! Se registran ${val} escaneos oficiales válidos.`);
+        }
+      },
+      error: function(err) {
+        console.error("Error al descargar CSV:", err);
+        if (mostrarAlerta) alert("Error al sincronizar con Google Sheets: " + err.message);
+      }
+    });
+  }
   </script>
 </body>
 </html>
