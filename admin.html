@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento Técnica PUSH - Panel de Gestión y Calidad</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Librerías de soporte -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- ENCABEZADO INSTITUCIONAL -->
+  <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+      
+      <div class="flex items-center gap-4">
+        <img src="Logo-sura.png" alt="SURA" class="h-10 object-contain" onerror="this.style.display='none'">
+        <div class="border-l border-slate-300 pl-4">
+          <h1 class="text-lg font-bold text-blue-900 leading-tight">Seguimiento Técnica PUSH</h1>
+          <p class="text-xs text-slate-500 font-medium">Salud en Casa · Panel de Gestión y Calidad Asistencial</p>
+        </div>
+      </div>
+
+      <!-- Navegación por pestañas -->
+      <nav class="flex space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button id="btnTabDashboard" onclick="cambiarPestana('dashboard')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-blue-900 text-white shadow">
+          <i class="fa-solid fa-chart-pie mr-1.5"></i>Dashboard
+        </button>
+        <button id="btnTabInformes" onclick="cambiarPestana('informes')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-blue-900">
+          <i class="fa-solid fa-table-list mr-1.5"></i>Informes
+        </button>
+        <button id="btnTabQr" onclick="cambiarPestana('qr')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-blue-900">
+          <i class="fa-solid fa-qrcode mr-1.5"></i>Generador & QR
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- BARRA SUPERIOR DE RESUMEN Y SEMÁFORO OFICIAL -->
+  <section class="bg-slate-100/90 border-b border-slate-200 py-3">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-4">
+      
+      <div class="flex flex-wrap items-center gap-3 text-xs">
+        <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2.5">
+          <span class="font-bold text-slate-600 uppercase">Pacientes Encuestados (Total):</span>
+          <span id="contTotalPacientes" class="text-2xl font-black text-blue-900">0</span>
+        </div>
+        <div class="flex items-center gap-3 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm text-slate-600">
+          <span>Escaneados QR: <strong id="contEscaneadosTotales" class="text-blue-700 text-sm font-black">0</strong></span>
+          <span class="text-slate-300">|</span>
+          <span>Solo Escaneados: <strong id="contSoloEscaneados" class="text-indigo-700 text-sm font-black">0</strong></span>
+          <span class="text-slate-300">|</span>
+          <span>Completados con Forms: <strong id="contCompletados" class="text-emerald-700 text-sm font-black">0</strong></span>
+        </div>
+        <div id="badgeCumplimientoGeneral" class="px-3.5 py-2 rounded-xl text-xs font-extrabold border flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border-emerald-300">
+          <span id="dotCumplimiento" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span id="txtCumplimiento">Calidad Asistencial (Forms): 100.0% (CUMPLE)</span>
+        </div>
+      </div>
+
+      <!-- Guía oficial del Semáforo -->
+      <div class="flex flex-wrap items-center gap-3 text-xs bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+        <span class="font-bold text-slate-600">Semáforo Oficial:</span>
+        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="font-semibold text-emerald-900">CUMPLE (≥ 95%)</span></div>
+        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-amber-400"></span><span class="font-semibold text-amber-900">Revisar (70% - 94.9%)</span></div>
+        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span><span class="font-semibold text-rose-900">Alarma (&lt; 70%)</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== PESTAÑA 1: DASHBOARD ==================== -->
+  <main id="vistaDashboard" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 space-y-6">
+    
+    <!-- Tarjetas de Indicadores Ejecutivos -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="bg-white border border-slate-200 border-l-4 border-l-blue-600 rounded-xl p-4 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Pacientes Escaneados QR</p>
+        <h3 id="kpiEscaneos" class="text-2xl font-black text-blue-900 mt-1">0</h3>
+        <p class="text-[11px] text-slate-400 mt-0.5">Solo escaneados: <strong id="kpiSubSoloScan" class="text-slate-600">0</strong></p>
+      </div>
+
+      <div class="bg-white border border-slate-200 border-l-4 border-l-indigo-600 rounded-xl p-4 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Encuestas Completas (Forms)</p>
+        <h3 id="kpiCompletadas" class="text-2xl font-black text-indigo-900 mt-1">0</h3>
+        <p class="text-[11px] text-slate-400 mt-0.5">Conversión QR a Forms: <strong id="kpiSubConversion" class="text-indigo-700">100.0%</strong></p>
+      </div>
+
+      <div id="cardSemaforoGlobal" class="bg-white border border-slate-200 border-l-4 border-l-emerald-500 rounded-xl p-4 shadow-sm">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase">Calidad y Satisfacción Asistencial</p>
+            <h3 id="kpiEfForms" class="text-2xl font-black text-emerald-900 mt-1">100.0%</h3>
+          </div>
+          <span id="badgeSemaforoGlobal" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border bg-emerald-100 text-emerald-800 border-emerald-300">CUMPLE</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-0.5">Basado en las 5 preguntas del Forms (0% a 100%)</p>
+      </div>
+
+      <div class="bg-white border border-slate-200 border-l-4 border-l-teal-500 rounded-xl p-4 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Cumplimiento Tranquilidad (P1)</p>
+        <h3 id="kpiP1Porcentaje" class="text-2xl font-black text-teal-800 mt-1">100.0%</h3>
+        <p class="text-[11px] text-slate-400 mt-0.5">Aplicación tranquila y sin afán</p>
+      </div>
+    </div>
+
+    <!-- Sección de Gráficos de las Preguntas Oficiales del Forms -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <h3 class="font-bold text-sm text-blue-900 uppercase tracking-wide mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-clipboard-check text-blue-700"></i> Medición Oficial de Preguntas del Forms
+      </h3>
+      <p class="text-xs text-slate-500 mb-4">Evaluación directa de la experiencia del paciente según los 5 parámetros de calidad</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Gráfico P1 -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">1. ¿Tranquila y sin afán?</h4>
+            <button onclick="descargarImagenCanvas('chartPregunta1', 'Pregunta_1_Tranquilidad.png')" class="text-[10px] bg-white hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="chartPregunta1"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico P2 -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">2. ¿Molestias en brazo/sitio?</h4>
+            <button onclick="descargarImagenCanvas('chartPregunta2', 'Pregunta_2_Molestias_Brazo.png')" class="text-[10px] bg-white hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="chartPregunta2"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico P3 -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">3. ¿Síntomas generales?</h4>
+            <button onclick="descargarImagenCanvas('chartPregunta3', 'Pregunta_3_Sintomas_Generales.png')" class="text-[10px] bg-white hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="chartPregunta3"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico P4 -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">4. Conducta ante molestias</h4>
+            <button onclick="descargarImagenCanvas('chartPregunta4', 'Pregunta_4_Conducta.png')" class="text-[10px] bg-white hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="chartPregunta4"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fila de Gráficos: Tendencias y Rendimiento -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase">Línea de Crecimiento: Escaneos QR vs Respuestas Forms</h4>
+            <p class="text-[11px] text-slate-400">Evolución diaria de participación de pacientes</p>
+          </div>
+          <button onclick="descargarImagenCanvas('chartTendenciaLineas', 'Dashboard_Tendencia_Crecimiento.png')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-900 text-slate-700 px-2.5 py-1 rounded border transition-all flex items-center gap-1">
+            <i class="fa-solid fa-download"></i> Imagen
+          </button>
+        </div>
+        <div class="w-full h-64 relative">
+          <canvas id="chartTendenciaLineas"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase">Rendimiento por Cargo / Programa Asistencial</h4>
+            <p class="text-[11px] text-slate-400">Comparativa de Escaneos, Forms y Calidad por Programa</p>
+          </div>
+          <button onclick="descargarImagenCanvas('chartRendimientoCargos', 'Dashboard_Rendimiento_Programas.png')" class="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-900 text-slate-700 px-2.5 py-1 rounded border transition-all flex items-center gap-1">
+            <i class="fa-solid fa-download"></i> Imagen
+          </button>
+        </div>
+        <div class="w-full h-64 relative">
+          <canvas id="chartRendimientoCargos"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pregunta 5: Muro de Felicitaciones -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <div>
+          <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-heart text-rose-500"></i> 5. Comentarios y Felicitaciones de Pacientes
+          </h4>
+          <p class="text-[11px] text-slate-500">Mensajes directos dejados por los pacientes al profesional de la atención</p>
+        </div>
+        <span id="contComentariosDash" class="text-xs font-bold bg-blue-100 text-blue-900 px-3 py-1 rounded-full">0 comentarios</span>
+      </div>
+      <div id="muroComentariosDash" class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+        <p class="text-xs text-slate-400 italic">No hay comentarios cargados en las encuestas aún.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== PESTAÑA 2: INFORMES ==================== -->
+  <main id="vistaInformes" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 hidden space-y-6">
+    
+    <!-- Encabezado de Control -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="font-bold text-sm text-blue-900 uppercase tracking-wide">
+            <i class="fa-solid fa-sliders mr-1.5"></i>Centro de Datos, Gráficos y Exportación de Informes
+          </h3>
+          <p class="text-xs text-slate-500">Carga el Excel de respuestas de Forms o sincroniza Google Sheets para actualizar todo el panel</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Botón Sincronizar Sheets -->
+          <button onclick="recargarDatos(true)" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate"></i> Sincronizar Sheets
+          </button>
+
+          <!-- Botón Cargar Encuestas Forms -->
+          <input type="file" id="inputFormsExcel" accept=".xlsx, .xls, .csv" onchange="cargarArchivoFormsManual(event)" class="hidden">
+          <button onclick="document.getElementById('inputFormsExcel').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-file-import"></i> Cargar Encuestas Forms (.xlsx)
+          </button>
+
+          <!-- Selector de Tipo de Gráfico -->
+          <div class="bg-slate-100 p-1 rounded-lg border border-slate-200 flex items-center">
+            <button id="btnTipoDoughnut" onclick="cambiarTipoGrafico('doughnut')" class="px-2.5 py-1 text-xs font-bold rounded bg-white text-blue-900 shadow">Anillos</button>
+            <button id="btnTipoBar" onclick="cambiarTipoGrafico('bar')" class="px-2.5 py-1 text-xs font-bold rounded text-slate-600 hover:text-blue-900">Barras</button>
+          </div>
+
+          <!-- Botones de Descarga Global -->
+          <button onclick="exportarExcelInformes()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-file-excel"></i> Excel (.xlsx)
+          </button>
+          <button onclick="descargarCapturaInforme()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-camera"></i> Imagen Informe
+          </button>
+        </div>
+      </div>
+
+      <!-- Parámetros de Consulta -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end pt-1">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nivel de Análisis</label>
+          <select id="infTipoVista" onchange="cambiarTipoVistaInforme()" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-3 py-2 outline-none font-semibold focus:ring-2 focus:ring-blue-500">
+            <option value="GENERAL">General Programa</option>
+            <option value="CARGO">Por Cargo / Programa</option>
+            <option value="PROFESIONAL">Por Profesional Individual</option>
+          </select>
+        </div>
+
+        <div id="columnaSelectorCargo" class="hidden">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Seleccionar Cargo / Programa</label>
+          <select id="infSelectorCargo" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"></select>
+        </div>
+
+        <div id="columnaBuscadorProfesional" class="hidden relative">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Buscar Profesional (Nombre o Cédula)</label>
+          <div class="relative">
+            <input type="text" id="infInputProfesional" oninput="filtrarListaProfesionalesInforme(this.value)" onfocus="filtrarListaProfesionalesInforme(this.value)" placeholder="Digita cédula o nombre..." autocomplete="off" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg pl-3 pr-8 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
+            <input type="hidden" id="infDocProfesionalSeleccionado" value="">
+            <i onclick="limpiarProfesionalInforme()" class="fa-solid fa-xmark absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"></i>
+          </div>
+          <div id="dropdownProfesionalesInforme" class="absolute z-40 w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto hidden"></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Desde Fecha (Opcional)</label>
+          <input type="date" id="infFechaDesde" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-1.5 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Hasta Fecha (Opcional)</label>
+          <input type="date" id="infFechaHasta" class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-1.5 outline-none">
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="consultarInformes()" class="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition-all flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-magnifying-glass"></i> Consultar
+          </button>
+          <button onclick="limpiarRangoFechasInforme()" title="Ver todo el historial sin filtro de fechas" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-3 py-2 rounded-lg border border-slate-300 transition-all">
+            Todo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Área Capturable del Informe Consultado -->
+    <div id="areaCapturaInforme" class="space-y-6">
+      
+      <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex flex-wrap justify-between items-center text-xs">
+        <div>
+          <span class="font-bold text-blue-950">Informe Activo:</span>
+          <span id="lblResumenFiltroInforme" class="text-blue-800 font-semibold ml-1">General Programa (Historial Completo)</span>
+        </div>
+        <span id="badgeEstadoSemaforoInforme" class="px-3 py-0.5 rounded-full font-extrabold border bg-emerald-100 text-emerald-800 border-emerald-300">CUMPLE</span>
+      </div>
+
+      <!-- Tarjetas de Efectividad -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-600">
+          <p class="text-[11px] font-bold text-slate-500 uppercase">Escaneos QR</p>
+          <h3 id="infResEscaneos" class="text-2xl font-black text-blue-900 mt-1">0</h3>
+          <p class="text-[10px] text-slate-400">Solo escaneados: <strong id="infResSoloScan">0</strong></p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-600">
+          <p class="text-[11px] font-bold text-slate-500 uppercase">Completadas Forms</p>
+          <h3 id="infResForms" class="text-2xl font-black text-indigo-900 mt-1">0</h3>
+          <p class="text-[10px] text-slate-400">Encuestas recibidas</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-sky-500">
+          <p class="text-[11px] font-bold text-slate-500 uppercase">1. Tranquilidad (P1)</p>
+          <h3 id="infResP1" class="text-2xl font-black text-sky-800 mt-1">100.0%</h3>
+          <p class="text-[10px] text-slate-400">Sin afán según paciente</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-600">
+          <p class="text-[11px] font-bold text-slate-500 uppercase">2. Sin Molestias Brazo (P2)</p>
+          <h3 id="infResP2" class="text-2xl font-black text-emerald-900 mt-1">100.0%</h3>
+          <p class="text-[10px] text-slate-400">Sin dolor/ardor en punción</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-teal-600">
+          <p class="text-[11px] font-bold text-slate-500 uppercase">3. Calidad Global Forms</p>
+          <h3 id="infResEfForms" class="text-2xl font-black text-teal-900 mt-1">100.0%</h3>
+          <p class="text-[10px] text-slate-400">Promedio general de calidad</p>
+        </div>
+      </div>
+
+      <!-- Gráficos del Informe -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">1. ¿Tranquila y sin afán?</h4>
+            <button onclick="descargarImagenCanvas('infChartP1', 'Informe_Pregunta_1.png')" class="text-[10px] bg-slate-100 hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="infChartP1"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">2. Molestias en brazo</h4>
+            <button onclick="descargarImagenCanvas('infChartP2', 'Informe_Pregunta_2.png')" class="text-[10px] bg-slate-100 hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="infChartP2"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">3. Síntomas generales</h4>
+            <button onclick="descargarImagenCanvas('infChartP3', 'Informe_Pregunta_3.png')" class="text-[10px] bg-slate-100 hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="infChartP3"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase">4. ¿Qué hizo?</h4>
+            <button onclick="descargarImagenCanvas('infChartP4', 'Informe_Pregunta_4.png')" class="text-[10px] bg-slate-100 hover:bg-blue-50 text-slate-700 px-2 py-0.5 rounded border">
+              <i class="fa-solid fa-download"></i>
+            </button>
+          </div>
+          <div class="w-full h-44 relative flex items-center justify-center">
+            <canvas id="infChartP4"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen por Cargo / Programa -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+          <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Consolidado por Cargo / Programa Asistencial</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 text-slate-600 uppercase text-[11px] font-bold border-b border-slate-200">
+              <tr>
+                <th class="p-3">Cargo / Programa</th>
+                <th class="p-3 text-center">Profesionales</th>
+                <th class="p-3 text-center">Escaneos QR</th>
+                <th class="p-3 text-center">Solo Escaneados</th>
+                <th class="p-3 text-center">Forms Recibidos</th>
+                <th class="p-3 text-center">Tranquilidad (P1)</th>
+                <th class="p-3 text-center">Sin Molestias (P2)</th>
+                <th class="p-3 text-center">Calidad Forms</th>
+                <th class="p-3 text-center">Semáforo</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaCargosInforme" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabla Nominal -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <h4 class="font-bold text-slate-800 text-sm">Rendimiento Nominal del Personal</h4>
+            <p class="text-[11px] text-slate-500">Mide cada profesional frente a las respuestas reales del Forms</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="limpiarFiltrosColumnasNominal()" class="text-xs text-blue-800 hover:underline font-semibold">
+              <i class="fa-solid fa-filter-circle-xmark mr-1"></i>Limpiar filtros
+            </button>
+            <span id="contadorTablaNominal" class="text-xs font-bold bg-blue-100 text-blue-900 px-3 py-1 rounded-full">Mostrando colaboradores</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
+              <tr class="text-slate-600 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
+                <th class="p-2.5">Documento</th>
+                <th class="p-2.5">Nombre y Apellido</th>
+                <th class="p-2.5">Cargo / Programa</th>
+                <th class="p-2.5 text-center">Escaneos</th>
+                <th class="p-2.5 text-center">Forms</th>
+                <th class="p-2.5 text-center">Tranquilidad (P1)</th>
+                <th class="p-2.5 text-center">Sin Molestias (P2)</th>
+                <th class="p-2.5 text-center">Calidad Forms</th>
+                <th class="p-2.5 text-center">Semáforo</th>
+              </tr>
+              <!-- Filtros en línea -->
+              <tr class="bg-slate-200/70 border-b border-slate-300 text-xs">
+                <th class="p-1.5"><input type="text" id="fColDoc" oninput="filtrarTablaNominalEnVivo()" placeholder="Filtrar doc..." class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs outline-none"></th>
+                <th class="p-1.5"><input type="text" id="fColNombre" oninput="filtrarTablaNominalEnVivo()" placeholder="Filtrar nombre..." class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs outline-none"></th>
+                <th class="p-1.5">
+                  <select id="fColCargo" onchange="filtrarTablaNominalEnVivo()" class="w-full bg-white border border-slate-300 rounded px-1.5 py-1 text-xs outline-none">
+                    <option value="">Todos</option>
+                  </select>
+                </th>
+                <th class="p-1.5"><input type="text" id="fColEsc" oninput="filtrarTablaNominalEnVivo()" placeholder=">0" class="w-16 mx-auto block bg-white border border-slate-300 rounded px-1 py-1 text-xs text-center outline-none"></th>
+                <th class="p-1.5"><input type="text" id="fColComp" oninput="filtrarTablaNominalEnVivo()" placeholder=">0" class="w-16 mx-auto block bg-white border border-slate-300 rounded px-1 py-1 text-xs text-center outline-none"></th>
+                <th class="p-1.5"><input type="text" id="fColP1" oninput="filtrarTablaNominalEnVivo()" placeholder="% P1" class="w-16 mx-auto block bg-white border border-slate-300 rounded px-1 py-1 text-xs text-center outline-none"></th>
+                <th class="p-1.5"><input type="text" id="fColP2" oninput="filtrarTablaNominalEnVivo()" placeholder="% P2" class="w-16 mx-auto block bg-white border border-slate-300 rounded px-1 py-1 text-xs text-center outline-none"></th>
+                <th class="p-1.5"><input type="text" id="fColEfForms" oninput="filtrarTablaNominalEnVivo()" placeholder="% Global" class="w-16 mx-auto block bg-white border border-slate-300 rounded px-1 py-1 text-xs text-center outline-none"></th>
+                <th class="p-1.5">
+                  <select id="fColSem" onchange="filtrarTablaNominalEnVivo()" class="w-full bg-white border border-slate-300 rounded px-1.5 py-1 text-xs outline-none">
+                    <option value="">Todos</option>
+                    <option value="CUMPLE">CUMPLE</option>
+                    <option value="Revisar">Revisar</option>
+                    <option value="Alarma">Alarma</option>
+                  </select>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaRankingInformes" class="divide-y divide-slate-100 text-xs"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pregunta 5 en Informes -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+          <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-comment-dots text-indigo-600"></i> Comentarios y Felicitaciones (Filtro Activo)
+          </h4>
+          <span id="contComentariosInf" class="text-xs font-bold bg-indigo-100 text-indigo-900 px-3 py-0.5 rounded-full">0 comentarios</span>
+        </div>
+        <div id="muroComentariosInf" class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto">
+          <p class="text-xs text-slate-400 italic">No hay comentarios en la selección consultada.</p>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ==================== PESTAÑA 3: GENERADOR Y GESTIÓN DE QR ==================== -->
+  <main id="vistaQr" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 hidden space-y-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Carga Masiva con Plantilla Oficial -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between space-y-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-up text-blue-900"></i> Importación Masiva (.xlsx)
+          </h3>
+          <p class="text-xs text-slate-500 mb-3">Descarga la plantilla con los programas oficiales preconfigurados para mantener total coherencia en la base.</p>
+          <button onclick="descargarPlantillaMasivaQR()" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2">
+            <i class="fa-solid fa-file-excel"></i> Descargar Plantilla Oficial (.xlsx)
+          </button>
+        </div>
+
+        <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-all">
+          <input type="file" id="inputExcelMasivo" accept=".xlsx, .xls, .csv" onchange="cargarExcelMasivo(event)" class="hidden">
+          <label for="inputExcelMasivo" class="cursor-pointer text-xs font-bold text-blue-900 block">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl text-blue-600 block mb-2"></i>
+            Subir Plantilla Diligenciada
+          </label>
+          <span id="lblArchivoMasivo" class="text-[11px] text-slate-400 block mt-2">Base oficial sincronizada</span>
+        </div>
+      </div>
+
+      <!-- Generador Individual -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:col-span-2">
+        <h2 class="text-sm font-bold text-slate-800 mb-1">Generar o Consultar Código QR Individual</h2>
+        <p class="text-xs text-slate-500 mb-4">El QR codifica exclusivamente la cédula del colaborador. Todos los campos marcados con <span class="text-rose-600 font-bold">*</span> son obligatorios.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Buscar Profesional Existente (Opcional)</label>
+              <select id="selectProfesionalQr" onchange="seleccionarProfesionalParaQr()" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs outline-none"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Número de Documento (Cédula) <span class="text-rose-600">*</span></label>
+              <input type="text" id="qrDocumento" placeholder="Ej: 1017234567" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Nombre y Apellido Completo <span class="text-rose-600">*</span></label>
+              <input type="text" id="qrNombre" placeholder="Ej: MARIA CAMILA PEREZ" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs uppercase outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Cargo / Programa Oficial <span class="text-rose-600">*</span></label>
+              <select id="qrCargo" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
+                <option value="">-- Seleccionar Cargo / Programa --</option>
+              </select>
+            </div>
+            <button onclick="generarCodigoQR()" class="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow">
+              <i class="fa-solid fa-qrcode"></i> Validar Datos y Generar QR
+            </button>
+          </div>
+
+          <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-4 min-h-[250px]">
+            <div id="contenedorQrCanvas" class="p-2 bg-white rounded-lg shadow-sm"></div>
+            <p id="qrEtiquetaNombre" class="text-xs font-bold text-slate-800 mt-2 text-center"></p>
+            <p id="qrEtiquetaCargo" class="text-[11px] text-slate-500 text-center"></p>
+            <button id="btnDescargarQr" onclick="descargarImagenQR()" class="hidden mt-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow flex items-center gap-2">
+              <i class="fa-solid fa-download"></i> Descargar PNG
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Listado General de QR -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 text-sm">Base Oficial de Profesionales con QR Asignado</h3>
+        <span id="lblTotalBaseQr" class="text-xs font-bold text-blue-900 bg-blue-100 px-3 py-1 rounded-full"></span>
+      </div>
+      <div class="overflow-x-auto max-h-[500px]">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead class="sticky top-0 bg-slate-100 z-10">
+            <tr class="text-slate-600 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
+              <th class="p-3">Cédula</th>
+              <th class="p-3">Colaborador</th>
+              <th class="p-3">Cargo / Programa</th>
+              <th class="p-3 text-center">Estado</th>
+              <th class="p-3 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaQRs" class="divide-y divide-slate-100 text-xs"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- LÓGICA JAVASCRIPT -->
+  <script>
+    const URL_BASE_ESCANEO = "https://salud-en-casa.github.io/push-sura/?doc=";
+    // URL Pública Oficial del Google Sheet CSV (Con anti-caché dinámico)
+    const URL_SHEETS_CSV_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ9kpNZw4jSMTANmiqQrWI6GAUrnCjImwXaNeq6Cepmm2DhIEBIhD9EOiRMnpmcSRUYKgpPqyDs9Oh4/pub?output=csv";
+
+    // CARGOS Y PROGRAMAS OFICIALES SURA
+    const CARGOS_OFICIALES = [
+      "AGUDOS RUTA",
+      "CHER",
+      "GESTOR",
+      "GESTOR ENF VIRTUAL",
+      "LABORATORIO",
+      "TRACKING",
+      "VIRTUAL"
+    ];
+
+    // BASE DE 219 PROFESIONALES CON SUS CARGOS Y PROGRAMAS REALES
+    const LISTA_MAESTRA_DEFAULT = [
+      {"doc":"52871949","nombre":"ADRIANA PATRICIA SALAZAR URREGO","cargo":"LABORATORIO","activo":true},
+      {"doc":"39278325","nombre":"ALBA LUZ BARRERA ORTIZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128446632","nombre":"ALEJANDRA MARIA RUIZ BARRIENTOS","cargo":"CHER","activo":true},
+      {"doc":"71797666","nombre":"ALEJANDRO BARÓN GÓMEZ","cargo":"CHER","activo":true},
+      {"doc":"43843364","nombre":"AMALIA PATRICIA MAZUERA ORTIZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1066733936","nombre":"AMIRA PERDOMO RIQUEME","cargo":"LABORATORIO","activo":true},
+      {"doc":"1098746952","nombre":"AMY GISSELL HERNANDEZ","cargo":"TRACKING","activo":true},
+      {"doc":"1000897898","nombre":"ANA MARIA CORDOBA GOMEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1020487525","nombre":"ANA MARIA GARCIA PEREZ","cargo":"LABORATORIO","activo":true},
+      {"doc":"1152687643","nombre":"ANA MARIA GRAJALES SEPULVEDA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1020424765","nombre":"ANA SOFIA BARRIOS MEJIA","cargo":"LABORATORIO","activo":true},
+      {"doc":"71750998","nombre":"ANDRES MAURICIO MARIN MOSQUERA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1035876094","nombre":"ANGIE CATERINE SALDARRIAGA GOMEZ","cargo":"TRACKING","activo":true},
+      {"doc":"1214741573","nombre":"ANGIE PAOLA PATIÑO RODRIGUEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1037652103","nombre":"ANYI MIRLEYE VELASQUEZ NUNO","cargo":"VIRTUAL","activo":true},
+      {"doc":"1042094006","nombre":"ANYI PAOLA MESA JARAMILLO","cargo":"LABORATORIO","activo":true},
+      {"doc":"1007510437","nombre":"AURA ISABEL ESCOBAR OROZCO","cargo":"CHER","activo":true},
+      {"doc":"43828040","nombre":"BEATRIZ ELENA VASQUEZ LOPERA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"21588110","nombre":"BERTHA CECILIA SIBAJA VILLALBA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43815773","nombre":"BIBIANA MARIA RAMIREZ FERNANDEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1053826878","nombre":"CAMILO ANDRES MEDINA GOMEZ","cargo":"GESTOR","activo":true},
+      {"doc":"1103095558","nombre":"CARLOS ALBERTO SIERRA DOMINGUEZ","cargo":"CHER","activo":true},
+      {"doc":"1065003376","nombre":"CAROLINA HERNANDEZ ARIAS","cargo":"LABORATORIO","activo":true},
+      {"doc":"1017200032","nombre":"CAROLINA MARIA BEDOYA ARAQUE","cargo":"GESTOR","activo":true},
+      {"doc":"1036670014","nombre":"CAROLINA PEREZ GUARIN","cargo":"GESTOR","activo":true},
+      {"doc":"1017189824","nombre":"CAROLINA RAMIREZ LONDOÑO","cargo":"VIRTUAL","activo":true},
+      {"doc":"1027800764","nombre":"CATALINA ARANGO GUILLEN","cargo":"CHER","activo":true},
+      {"doc":"1036657541","nombre":"CATHERINE ALVAREZ CARTAGENA","cargo":"GESTOR","activo":true},
+      {"doc":"1036961744","nombre":"CATHERYNE RUA ZULUAGA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1039457458","nombre":"CINDY CAROLINA CANO VELASQUEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128429099","nombre":"CINDY MARYORI GIRALDO LONGAS","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128434767","nombre":"CLAUDIA FERNANDA ORREGO GIRALDO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1038626057","nombre":"CLAUDIA MARCELA TORRES CARDONA","cargo":"CHER","activo":true},
+      {"doc":"1017277871","nombre":"CRISTIAN ALFONZO HERNANDEZ MERCADO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1042066182","nombre":"CRISTIAN CAMILO ROMAN MEJIA","cargo":"GESTOR","activo":true},
+      {"doc":"1000535580","nombre":"CRISTIAN SANTIAGO OCAMPO HERNANDEZ","cargo":"CHER","activo":true},
+      {"doc":"1128272865","nombre":"CYNTHIA CRISTINA CADAVID MONTOYA","cargo":"CHER","activo":true},
+      {"doc":"43767136","nombre":"DAHIANA CAROLINA VILLA ARANGO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1004681783","nombre":"DAHIANA MELIZA ISAZA MEDINA","cargo":"CHER","activo":true},
+      {"doc":"98667457","nombre":"DAIRON HARVEY TABORDA PIEDRAHITA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1035522552","nombre":"DANIELA ARIAS VALDES","cargo":"GESTOR","activo":true},
+      {"doc":"1128482064","nombre":"DANIELA GUILLEN OSSA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1037629951","nombre":"DANIELA HINCAPIE TORO","cargo":"LABORATORIO","activo":true},
+      {"doc":"43187377","nombre":"DANIGSA PAOLIN NIETO PORRAS","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1000897716","nombre":"DAVID MONSALVE CIFUENTES","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128464775","nombre":"DAVID STIVEN SALDARRIAGA AGUDELO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1020442827","nombre":"DIANA CAROLINA CORDOBA VALENCIA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017242537","nombre":"DIANA LORENA GALLEGO HERRERA","cargo":"GESTOR","activo":true},
+      {"doc":"1000398353","nombre":"DIANA MARCELA GARCIA PALACIO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128447497","nombre":"DIANA MARCELA OSORIO CASTRILLON","cargo":"GESTOR","activo":true},
+      {"doc":"1032327787","nombre":"DIANA MARIA POSADA BUILES","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1122144553","nombre":"DIEGO ALEJANDRO PADILLA JIMENEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1039685915","nombre":"DIEGO FERNANDO RAMIREZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"22143578","nombre":"DIELA FRANCISCA DE LA ROSA MORA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43624886","nombre":"DORIS ADRIANA USME LOPEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43746084","nombre":"DORIS EUGENIA TORRES CARDONA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1039469510","nombre":"EDWAR ALEJANDRO SUAZA OSPINA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017181970","nombre":"ELIANA VASQUEZ MONTOYA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1045050326","nombre":"ELIZABETH FERNANDA RAMIREZ SIERRA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1152703419","nombre":"ELKIN LOPERA VASCO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1045112397","nombre":"ERICA MARIA BUILES ACEVEDO","cargo":"GESTOR","activo":true},
+      {"doc":"1128440351","nombre":"ERIKA MARIA SERNA GARCIA","cargo":"GESTOR","activo":true},
+      {"doc":"43986856","nombre":"ERIKA YOHANA GOMEZ BETANCUR","cargo":"GESTOR","activo":true},
+      {"doc":"1020471096","nombre":"ESTEFANIA ARREDONDO VANEGAS","cargo":"GESTOR","activo":true},
+      {"doc":"1017198713","nombre":"ESTEFANIA CASTRILLON CEBALLOS","cargo":"CHER","activo":true},
+      {"doc":"1039422551","nombre":"ESTEFANIA HERNANDEZ USMA","cargo":"GESTOR","activo":true},
+      {"doc":"1001685897","nombre":"ESTEFANNIA SALINAS JARAMILLO","cargo":"GESTOR","activo":true},
+      {"doc":"1017237918","nombre":"ESTEFANY CHALARCA RENDON","cargo":"CHER","activo":true},
+      {"doc":"1017239202","nombre":"EVELIN JYNETH MORA GONZALEZ","cargo":"GESTOR","activo":true},
+      {"doc":"1035420594","nombre":"FLOR ALBA RODRIGUEZ AREIZA","cargo":"CHER","activo":true},
+      {"doc":"1214723505","nombre":"GENESIS BEATRIZ CIFUENTES URIBE","cargo":"CHER","activo":true},
+      {"doc":"1017188256","nombre":"GLENNIS MILE GARCIA LONDOÑO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43116969","nombre":"GLORIA CRISTINA JARAMILLO GIRALDO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1000440177","nombre":"ISABELLA MOLINA MURILLO","cargo":"TRACKING","activo":true},
+      {"doc":"1017929526","nombre":"ISABELLA OQUENDO LONDOÑO","cargo":"CHER","activo":true},
+      {"doc":"1151950246","nombre":"IVONNE CAROLINA DUQUE VALENCIA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128408178","nombre":"JACKELINE CARDENAS OSPINA","cargo":"CHER","activo":true},
+      {"doc":"1038094637","nombre":"JADER ANDRES NIEBLES PEREZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"17903062","nombre":"JAIME EDUARDO MORA GUERRERO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"98653846","nombre":"JAMER MANUEL ACOSTA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128417415","nombre":"JAMID LORENA ZEA CARO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1214735238","nombre":"JAZBLEIDY PALACIOS MORENO","cargo":"CHER","activo":true},
+      {"doc":"1010100129","nombre":"JEILIN TAMARA JIMENEZ ESCOBAR","cargo":"GESTOR","activo":true},
+      {"doc":"1017210395","nombre":"JESSICA NOREÑA SANCHEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"71787633","nombre":"JESUS ALONSO ZULUAGA LOPEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1073381064","nombre":"JESUS ANDRES MONTAÑO ABRIL","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1000640092","nombre":"JHON HANDER VILORIA SANTOS","cargo":"GESTOR","activo":true},
+      {"doc":"71759224","nombre":"JHON MARIO JARAMILLO CASTAÑO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"98778646","nombre":"JHOSEN HAWER ESCOBAR CANO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1000770945","nombre":"JIMENA BENITEZ URREGO","cargo":"CHER","activo":true},
+      {"doc":"1128469683","nombre":"JOHANA  MACIAS VALENCIA","cargo":"LABORATORIO","activo":true},
+      {"doc":"43912388","nombre":"JOHANA ANDREA ROJAS OLAYA","cargo":"GESTOR","activo":true},
+      {"doc":"71264258","nombre":"JOHN DAYRO GUTIERREZ RODRIGUEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"71211224","nombre":"JOHN FREIMAN GARCIA ZAPATA","cargo":"CHER","activo":true},
+      {"doc":"1053769448","nombre":"JONATHAN DUQUE COLORADO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"98565939","nombre":"JUAN CARLOS LOPEZ ALZATE","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1000763284","nombre":"JUAN PABLO GARCES RESTREPO","cargo":"CHER","activo":true},
+      {"doc":"71791183","nombre":"JUAN PABLO GOMEZ GOMEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1037599335","nombre":"JULIAN DAVID PULAGARIN PULGRARIN","cargo":"CHER","activo":true},
+      {"doc":"1045050231","nombre":"JULIANA ANDREA OCHOA MONSALVE","cargo":"GESTOR","activo":true},
+      {"doc":"1017147957","nombre":"JULIO CESAR VASQUEZ PUERTA","cargo":"CHER","activo":true},
+      {"doc":"1034916133","nombre":"KAREN DAHIANA GUZMAN ALVAREZ","cargo":"GESTOR","activo":true},
+      {"doc":"1033342533","nombre":"KELLY FERNANDA ROJAS VALLE","cargo":"CHER","activo":true},
+      {"doc":"1040758351","nombre":"KEVIN RESTREPO LONDOÑO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1152685960","nombre":"LAURA PEREZ MUÑOZ","cargo":"GESTOR","activo":true},
+      {"doc":"1000758236","nombre":"LEIDY CAROLINA HENAO SARRAZOLA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1035866990","nombre":"LEIDY JOHANNA SALAZAR VALLE","cargo":"CHER","activo":true},
+      {"doc":"1017127462","nombre":"LEIDY MARCELA RODRIGUEZ JUMY","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017263544","nombre":"LEIDY TATIANA ASPRILLA VALENCIA","cargo":"GESTOR","activo":true},
+      {"doc":"1035854243","nombre":"LEIDY VANESA GIRALDO GIRALDO","cargo":"LABORATORIO","activo":true},
+      {"doc":"43912945","nombre":"LEIDY VIVIANA GONZALEZ YEPES","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1043660369","nombre":"LENA PAOLA TEHERAN MERCADO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"39201082","nombre":"LEOMAR ANDREA OSORIO TAPIERO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017218241","nombre":"LILIANA MARIA GIRALDO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43971769","nombre":"LINA MARIA BEDOYA AGUDELO","cargo":"CHER","activo":true},
+      {"doc":"1128434108","nombre":"LINA MARIA VALENCIA LOPEZ","cargo":"LABORATORIO","activo":true},
+      {"doc":"1017177640","nombre":"LINEY STEFANY ESCUDERO GUZMAN","cargo":"GESTOR","activo":true},
+      {"doc":"43760841","nombre":"LISETTY ASTRID VASQUEZ MAZO","cargo":"GESTOR","activo":true},
+      {"doc":"1027948819","nombre":"LIZ BANEZA CASTRO JARAMILLO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017157680","nombre":"LORENA LOPEZ BEDOYA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1020409290","nombre":"LUIS EDUARDO RODRIGUEZ GARCIA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"71316599","nombre":"LUIS FERNANDO ORTIZ MEJIA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1040743406","nombre":"LUISA FERNANDA AGUDELO TABARES","cargo":"GESTOR","activo":true},
+      {"doc":"1020478827","nombre":"LUISA FERNANDA BLANDON MUÑOZ","cargo":"TRACKING","activo":true},
+      {"doc":"1020407395","nombre":"LUISA FERNANDA CIRO MONTOYA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1020447384","nombre":"LUISA FERNANDA CUARTAS CASTRO","cargo":"GESTOR","activo":true},
+      {"doc":"1036666465","nombre":"LUISA FERNANDA LEGUIZAMO GOMEZ","cargo":"GESTOR","activo":true},
+      {"doc":"1214744197","nombre":"LUISA FERNANDA PORRAS RAMIREZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1026150560","nombre":"LUISA MARIA MARULANDA VASQUEZ","cargo":"GESTOR","activo":true},
+      {"doc":"1214743551","nombre":"LUISA MARIA RESTREPO DEOSSA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1152201875","nombre":"LULY MARCELA QUIÑONES SANCHEZ","cargo":"LABORATORIO","activo":true},
+      {"doc":"1128400018","nombre":"LUZ MARINA GUAPACHA BUENO","cargo":"LABORATORIO","activo":true},
+      {"doc":"1035152619","nombre":"LUZ SARAI VALENCIA BARRIOS","cargo":"CHER","activo":true},
+      {"doc":"1017232039","nombre":"MAILY MICHELLE HIGUITA MEJIA","cargo":"TRACKING","activo":true},
+      {"doc":"1046903001","nombre":"MAIRA ALEJANDRA CARDENAS QUIROZ","cargo":"LABORATORIO","activo":true},
+      {"doc":"1007433522","nombre":"MANUELA MONTOYA VANEGAS","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1007223323","nombre":"MANUELA ORREGO LLANOS","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017235036","nombre":"MANUELA POSADA DURAN","cargo":"CHER","activo":true},
+      {"doc":"1025760704","nombre":"MANUELA VASQUEZ CHICA","cargo":"GESTOR","activo":true},
+      {"doc":"1004249880","nombre":"MARIA ALEJANDRA LEIVA MUÑOZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1193231253","nombre":"MARIA ALEJANDRA SALAS LONDOÑO","cargo":"CHER","activo":true},
+      {"doc":"1000290383","nombre":"MARIA ALEJANDRA SALDARRIAGA RESTREPO","cargo":"CHER","activo":true},
+      {"doc":"1216721933","nombre":"MARIA CAMILA HERNANDEZ HENAO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1214731378","nombre":"MARIA CAMILA PABON TORRES","cargo":"GESTOR","activo":true},
+      {"doc":"1152222516","nombre":"MARIA CAMILA YEPES QUIROZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128437686","nombre":"MARIA CRISTINA GARCIA GOMEZ","cargo":"CHER","activo":true},
+      {"doc":"21627375","nombre":"MARIA ELENA VALENCIA BETANCUR","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"32257754","nombre":"MARIA ISABEL BEDOYA BORJA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1036680050","nombre":"MARIA ISABEL BLANDON ZAPATA","cargo":"GESTOR","activo":true},
+      {"doc":"43463446","nombre":"MARIA LILIANA BETANCUR NARANJO","cargo":"TRACKING","activo":true},
+      {"doc":"1044120830","nombre":"MARIA YURANY CHAVARRIA CORREA","cargo":"VIRTUAL","activo":true},
+      {"doc":"1015067015","nombre":"MARIANA GARCIA HERNANDEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"71721261","nombre":"MARIO ALBERTO CORDOBA TAMAYO","cargo":"LABORATORIO","activo":true},
+      {"doc":"1232588044","nombre":"MARIO ALBERTO MORANTES RANGEL","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1040741678","nombre":"MARISSABEL DUQUE RIOS","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1032248734","nombre":"MARLY ESMERALDA RUEDA MARIN","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1007202892","nombre":"MARLY JULIETH COGUA ARISMENDY","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1035522276","nombre":"MARLYN PEREZ RIVERA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"42940197","nombre":"MARYORI PATRICIA GRANDEZ BAENA","cargo":"GESTOR","activo":true},
+      {"doc":"1152684611","nombre":"MAURO PEREZ MOLINA","cargo":"CHER","activo":true},
+      {"doc":"1020467135","nombre":"MELISA TABORDA PATIÑO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1152712068","nombre":"MELISSA  DUARTE CARVAJAL","cargo":"GESTOR","activo":true},
+      {"doc":"1037579206","nombre":"MILDREY JOHANNA NOREÑA","cargo":"CHER","activo":true},
+      {"doc":"1017182243","nombre":"MONICA ISABEL GUARIN SANCHEZ","cargo":"GESTOR","activo":true},
+      {"doc":"1128451814","nombre":"MONICA MARIA HERNANDEZ PANIAGUA","cargo":"CHER","activo":true},
+      {"doc":"21853498","nombre":"MONICA PATRICIA FLOREZ MORALES","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1088012002","nombre":"NATALIA GIRALDO MARTINEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1020423451","nombre":"NATALIA VANEGAS AGUDELO","cargo":"CHER","activo":true},
+      {"doc":"1005653751","nombre":"NAYESKA ZULLAY GARCIA BUSTOS","cargo":"LABORATORIO","activo":true},
+      {"doc":"71750602","nombre":"OSCAR ALONSO FLOREZ CASTRO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1046932628","nombre":"PAULA ANDREA RESTREPO CHICA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43753390","nombre":"PAULA ANDREA SEPULVEDA","cargo":"LABORATORIO","activo":true},
+      {"doc":"43164660","nombre":"PAULA ANDREA ZULUAGA ESCOBAR","cargo":"LABORATORIO","activo":true},
+      {"doc":"1128449205","nombre":"RICARDO ALEXANDER AGUDELO ALVAREZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1035876724","nombre":"RICHARD CASTRILLON MUÑOZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1140878602","nombre":"ROSA ANGELICA ACEVEDO NUÑEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"71698055","nombre":"RUBEN DARIO SUAZA PEDRAZA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43257529","nombre":"SAIDITH ARISTIZABAL CRIADO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43111942","nombre":"SANDRA MARCELA PANIAGUA VALDERRAMA","cargo":"VIRTUAL","activo":true},
+      {"doc":"39176506","nombre":"SANDRA MILENA MORALES SARRAZOLA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43632220","nombre":"SANDRA PATRICIA LOAIZA BARRERA","cargo":"LABORATORIO","activo":true},
+      {"doc":"1035235705","nombre":"SANTIAGO BENJUMEA LOPEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1036518885","nombre":"SANTIAGO PARRA YEPES","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1017139776","nombre":"SARA GARCES VASQUEZ","cargo":"GESTOR","activo":true},
+      {"doc":"1000414149","nombre":"SARA JULIETH HINCAPIE PUERTA","cargo":"CHER","activo":true},
+      {"doc":"1000292724","nombre":"SARA MICHELLE YEPES GOMEZ","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1037325008","nombre":"SARA PAULINA DIAZ MARIN","cargo":"GESTOR","activo":true},
+      {"doc":"1000203998","nombre":"SEBASTIAN GRACIANO GRACIANO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1001456950","nombre":"SERGIO ALEJANDRO DUQUE MONTOYA","cargo":"CHER","activo":true},
+      {"doc":"1020436927","nombre":"SERGIO ANDRES MONTOYA HERRERA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1216723642","nombre":"SHARON VALENTINA RUIZ BETANCUR","cargo":"GESTOR","activo":true},
+      {"doc":"1000900243","nombre":"SOFIA SUAREZ QUINTANA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1152212328","nombre":"SONIA FRANCO ARENAS","cargo":"CHER","activo":true},
+      {"doc":"1020399863","nombre":"SONIA JARAMILLO OQUENDO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1042065850","nombre":"SORANY ANDREA RAMIREZ AGUDELO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1083024913","nombre":"STEFFANY PATRICIA POLO BRAVO","cargo":"LABORATORIO","activo":true},
+      {"doc":"1193036746","nombre":"STIVEN DAVID ROMERO TORRES","cargo":"CHER","activo":true},
+      {"doc":"1020419408","nombre":"TATIANA ANDREA MONTOYA SUAREZ","cargo":"GESTOR ENF VIRTUAL","activo":true},
+      {"doc":"1037652985","nombre":"TATIANA MARIA MANCO TORO","cargo":"LABORATORIO","activo":true},
+      {"doc":"1000761816","nombre":"VALENTINA MARIN RAMIREZ","cargo":"LABORATORIO","activo":true},
+      {"doc":"1152701094","nombre":"VALENTINA PEREZ RODRIGUEZ","cargo":"LABORATORIO","activo":true},
+      {"doc":"1128400128","nombre":"VERONICA ALEXANDRA MARIA SANCHEZ OSPINA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"98590620","nombre":"WILMAR ALEXANDER ALZATE ALZATE","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1011391273","nombre":"XIMENA ANDREA OSPINA ROJAS","cargo":"CHER","activo":true},
+      {"doc":"1005236111","nombre":"YARIC CRISTINA GARCIA JARAMILLO","cargo":"CHER","activo":true},
+      {"doc":"1061751327","nombre":"YAZMIN CORDOBA IBARRA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1035436084","nombre":"YEFERSON ANDREI ZAPATA JARAMILLO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1152451471","nombre":"YESICA YANETH CANO CORREA","cargo":"GESTOR","activo":true},
+      {"doc":"1128438081","nombre":"YESSICA VIVIANA LOPEZ CALLE","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1052386698","nombre":"YINETH VALENCIA MARIN","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1100695655","nombre":"YISSELA ANDREA HERRERA VITOLA","cargo":"CHER","activo":true},
+      {"doc":"43101986","nombre":"YOLI MARIA OCAMPO MAZO","cargo":"VIRTUAL","activo":true},
+      {"doc":"1017211655","nombre":"YOMARA CASTRILLON CONTRERAS","cargo":"GESTOR","activo":true},
+      {"doc":"1001549760","nombre":"YORLEDIS DEL CARMEN VERGARA FLORES","cargo":"CHER","activo":true},
+      {"doc":"1047971867","nombre":"YUDY CRISTINA LOPEZ BLANDON","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1000568723","nombre":"YULEISY PATIÑO ACEVEDO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"43822622","nombre":"YULY MARIANA YEPES RESTREPO","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1121852154","nombre":"YURI KARINA GONZALEZ BEDOYA","cargo":"AGUDOS RUTA","activo":true},
+      {"doc":"1128278311","nombre":"ZORAIDA CRISTINA JARAMILLO VASQUEZ","cargo":"AGUDOS RUTA","activo":true}
+    ];
+
+    let datosPersonal = [...LISTA_MAESTRA_DEFAULT];
+    let datosEscaneos = [];
+    let datosForms = [];
+    let rankingActualInformes = [];
+    let tipoGraficoSeleccionado = 'doughnut';
+
+    let chartDashP1 = null, chartDashP2 = null, chartDashP3 = null, chartDashP4 = null, chartDashLine = null, chartDashCargos = null;
+    let chartInfP1 = null, chartInfP2 = null, chartInfP3 = null, chartInfP4 = null;
+
+    // RECUPERACIÓN LOCAL INICIAL
+    try {
+      const guardadasForms = localStorage.getItem("PUSH_SURA_FORMS_DATA");
+      if (guardadasForms) datosForms = JSON.parse(guardadasForms);
+
+      const guardadosPersonal = localStorage.getItem("PUSH_SURA_PERSONAL_DATA");
+      if (guardadosPersonal) {
+        const parsed = JSON.parse(guardadosPersonal);
+        if (parsed && parsed.length >= datosPersonal.length) {
+          const mapaCargos = {};
+          LISTA_MAESTRA_DEFAULT.forEach(m => mapaCargos[m.doc] = m.cargo);
+          parsed.forEach(p => { if (mapaCargos[p.doc]) p.cargo = mapaCargos[p.doc]; });
+          datosPersonal = parsed;
+        }
+      }
+    } catch(e) {
+      console.warn("Error leyendo almacenamiento local:", e);
+    }
+
+    function obtenerEstadoSemaforo(porcentaje) {
+      const p = Math.min(100, Math.max(0, Number(porcentaje)));
+      if (p >= 95) {
+        return { clase: "bg-emerald-100 text-emerald-800 border-emerald-300", dot: "bg-emerald-500", texto: "CUMPLE", bordeCard: "border-l-emerald-500", severidad: 3 };
+      } else if (p >= 70) {
+        return { clase: "bg-amber-100 text-amber-800 border-amber-300", dot: "bg-amber-500", texto: "Revisar", bordeCard: "border-l-amber-500", severidad: 2 };
+      } else {
+        return { clase: "bg-rose-100 text-rose-800 border-rose-300", dot: "bg-rose-500 animate-pulse", texto: "Alarma", bordeCard: "border-l-rose-500", severidad: 1 };
+      }
+    }
+
+    function calcularMetricasEfectividad(escCount, listaForms) {
+      const compCount = listaForms.length;
+      const efScan = 100.0;
+
+      if (compCount === 0) {
+        return { efScan: 100.0, efForms: 100.0, efCombo: 100.0, p1Cumple: 100.0, p2Cumple: 100.0, p3Cumple: 100.0 };
+      }
+
+      let p1Ok = 0;
+      let p2Ok = 0;
+      let p3Ok = 0;
+
+      listaForms.forEach(f => {
+        if (f.p1Tranquila === true) p1Ok++;
+        if (f.p2SinMolestia === true) p2Ok++;
+        if (f.p3SinSintomas === true) p3Ok++;
+      });
+
+      const p1Cumple = Number(((p1Ok / compCount) * 100).toFixed(1));
+      const p2Cumple = Number(((p2Ok / compCount) * 100).toFixed(1));
+      const p3Cumple = Number(((p3Ok / compCount) * 100).toFixed(1));
+
+      const efForms = Number(((p1Cumple + p2Cumple + p3Cumple) / 3).toFixed(1));
+      const efCombo = escCount > 0 ? Number(Math.min(100, (compCount / escCount) * 100).toFixed(1)) : 100.0;
+
+      return { efScan, efForms, efCombo, p1Cumple, p2Cumple, p3Cumple };
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      inicializarSelectoresCargos();
+      poblarSelectProfesionalesQr();
+      renderizarTablaQRs();
+      cambiarTipoVistaInforme();
+      actualizarTodoElSistema();
+      recargarDatos(false);
+
+      document.addEventListener('click', (e) => {
+        const drop = document.getElementById('dropdownProfesionalesInforme');
+        const inp = document.getElementById('infInputProfesional');
+        if (drop && inp && !drop.contains(e.target) && e.target !== inp) {
+          drop.classList.add('hidden');
+        }
+      });
+    });
+
+    function inicializarSelectoresCargos() {
+      const cargosUnicos = [...new Set([...CARGOS_OFICIALES, ...datosPersonal.map(p => p.cargo)])].filter(Boolean).sort();
+      
+      const selCargoInf = document.getElementById('infSelectorCargo');
+      selCargoInf.innerHTML = cargosUnicos.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      const selColCargo = document.getElementById('fColCargo');
+      selColCargo.innerHTML = '<option value="">Todos</option>' + cargosUnicos.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      const selQrCargo = document.getElementById('qrCargo');
+      selQrCargo.innerHTML = '<option value="">-- Seleccionar Cargo / Programa --</option>' + cargosUnicos.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function cambiarPestana(pestana) {
+      document.getElementById('vistaDashboard').classList.add('hidden');
+      document.getElementById('vistaInformes').classList.add('hidden');
+      document.getElementById('vistaQr').classList.add('hidden');
+
+      const clsInactivo = "px-4 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-blue-900";
+      const clsActivo = "px-4 py-2 rounded-lg text-xs font-bold transition-all bg-blue-900 text-white shadow";
+
+      document.getElementById('btnTabDashboard').className = clsInactivo;
+      document.getElementById('btnTabInformes').className = clsInactivo;
+      document.getElementById('btnTabQr').className = clsInactivo;
+
+      if (pestana === 'dashboard') {
+        document.getElementById('vistaDashboard').classList.remove('hidden');
+        document.getElementById('btnTabDashboard').className = clsActivo;
+        renderizarDashboard();
+      } else if (pestana === 'informes') {
+        document.getElementById('vistaInformes').classList.remove('hidden');
+        document.getElementById('btnTabInformes').className = clsActivo;
+        consultarInformes();
+      } else if (pestana === 'qr') {
+        document.getElementById('vistaQr').classList.remove('hidden');
+        document.getElementById('btnTabQr').className = clsActivo;
+        renderizarTablaQRs();
+      }
+    }
+
+    function cambiarTipoGrafico(tipo) {
+      tipoGraficoSeleccionado = tipo;
+      const bD = document.getElementById('btnTipoDoughnut');
+      const bB = document.getElementById('btnTipoBar');
+      const inact = "px-2.5 py-1 text-xs font-bold rounded text-slate-600 hover:text-blue-900";
+      const act = "px-2.5 py-1 text-xs font-bold rounded bg-white text-blue-900 shadow";
+      bD.className = tipo === 'doughnut' ? act : inact;
+      bB.className = tipo === 'bar' ? act : inact;
+      renderizarDashboard();
+      consultarInformes();
+    }
+
+    function normalizarFechaISO(cadenaFecha) {
+      if (!cadenaFecha) return "";
+      const limpia = String(cadenaFecha).trim().split(' ')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(limpia)) return limpia;
+      const partes = limpia.split(/[\/\-]/);
+      if (partes.length === 3) {
+        if (partes[2].length === 4) {
+          const d = partes[0].padStart(2, '0');
+          const m = partes[1].padStart(2, '0');
+          return `${partes[2]}-${m}-${d}`;
+        }
+      }
+      return "";
+    }
+
+    function obtenerEscaneosOficiales() {
+      return datosEscaneos.filter(e => datosPersonal.some(p => String(p.doc).trim() === String(e.doc).trim()));
+    }
+
+    function obtenerFormsOficiales() {
+      return datosForms.filter(f => datosPersonal.some(p => String(p.doc).trim() === String(f.doc).trim()));
+    }
+
+    function actualizarTodoElSistema() {
+      actualizarBarraGlobal();
+      renderizarDashboard();
+      consultarInformes();
+    }
+
+    function actualizarBarraGlobal() {
+      const escValidos = obtenerEscaneosOficiales();
+      const formsValidos = obtenerFormsOficiales();
+      const esc = escValidos.length;
+      const comp = formsValidos.length;
+      const soloScan = Math.max(0, esc - comp);
+      const totalPacientes = Math.max(esc, comp);
+
+      document.getElementById('contTotalPacientes').innerText = totalPacientes;
+      document.getElementById('contEscaneadosTotales').innerText = esc;
+      document.getElementById('contSoloEscaneados').innerText = soloScan;
+      document.getElementById('contCompletados').innerText = comp;
+
+      const metricas = calcularMetricasEfectividad(esc, formsValidos);
+      const sem = obtenerEstadoSemaforo(metricas.efForms);
+
+      const badge = document.getElementById('badgeCumplimientoGeneral');
+      badge.className = `px-3.5 py-2 rounded-xl text-xs font-extrabold border flex items-center gap-1.5 ${sem.clase}`;
+      document.getElementById('dotCumplimiento').className = `w-2.5 h-2.5 rounded-full ${sem.dot}`;
+      document.getElementById('txtCumplimiento').innerText = `Calidad Asistencial (Forms): ${metricas.efForms.toFixed(1)}% (${sem.texto})`;
+    }
+
+    function renderizarDashboard() {
+      const escValidos = obtenerEscaneosOficiales();
+      const formsValidos = obtenerFormsOficiales();
+
+      const totalEsc = escValidos.length;
+      const totalComp = formsValidos.length;
+      const soloScan = Math.max(0, totalEsc - totalComp);
+
+      const metricas = calcularMetricasEfectividad(totalEsc, formsValidos);
+      const semGlobal = obtenerEstadoSemaforo(metricas.efForms);
+
+      document.getElementById('kpiEscaneos').innerText = totalEsc;
+      document.getElementById('kpiSubSoloScan').innerText = soloScan;
+      document.getElementById('kpiCompletadas').innerText = totalComp;
+      document.getElementById('kpiSubConversion').innerText = `${metricas.efCombo.toFixed(1)}%`;
+      document.getElementById('kpiEfForms').innerText = `${metricas.efForms.toFixed(1)}%`;
+      document.getElementById('kpiP1Porcentaje').innerText = `${metricas.p1Cumple.toFixed(1)}%`;
+
+      const cardSem = document.getElementById('cardSemaforoGlobal');
+      cardSem.className = `bg-white border border-slate-200 border-l-4 ${semGlobal.bordeCard} rounded-xl p-4 shadow-sm`;
+      const badgeSem = document.getElementById('badgeSemaforoGlobal');
+      badgeSem.className = `px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${semGlobal.clase}`;
+      badgeSem.innerText = semGlobal.texto;
+
+      let p1Si = 0, p1No = 0;
+      let p2Sin = 0, p2Con = 0;
+      let p3Sin = 0, p3Con = 0;
+      const mapaAcciones = {};
+      const comentarios = [];
+
+      formsValidos.forEach(f => {
+        if (f.p1Tranquila) p1Si++; else p1No++;
+        if (f.p2SinMolestia) p2Sin++; else p2Con++;
+        if (f.p3SinSintomas) p3Sin++; else p3Con++;
+
+        const accion = (f.p4Conducta || 'Sin reporte').trim();
+        mapaAcciones[accion] = (mapaAcciones[accion] || 0) + 1;
+
+        if (f.p5Comentario && f.p5Comentario.trim().length > 2) {
+          const prof = datosPersonal.find(p => String(p.doc).trim() === String(f.doc).trim());
+          comentarios.push({
+            texto: f.p5Comentario.trim(),
+            doc: f.doc,
+            profesional: prof ? prof.nombre : f.doc,
+            cargo: prof ? prof.cargo : '',
+            fecha: f.fechaHora || 'Reciente'
+          });
+        }
+      });
+
+      dibujarGrafico('chartPregunta1', tipoGraficoSeleccionado, ['Sí (Tranquila)', 'No (Con afán)'], [p1Si, p1No], ['#10B981', '#EF4444'], chartDashP1, i => chartDashP1 = i);
+      dibujarGrafico('chartPregunta2', tipoGraficoSeleccionado, ['Sin molestias', 'Con molestia/dolor'], [p2Sin, p2Con], ['#10B981', '#F59E0B'], chartDashP2, i => chartDashP2 = i);
+      dibujarGrafico('chartPregunta3', tipoGraficoSeleccionado, ['Sin síntomas', 'Con síntomas'], [p3Sin, p3Con], ['#10B981', '#EC4899'], chartDashP3, i => chartDashP3 = i);
+
+      const labelsAcc = Object.keys(mapaAcciones);
+      const dataAcc = labelsAcc.map(k => mapaAcciones[k]);
+      dibujarGrafico('chartPregunta4', 'bar', labelsAcc.length > 0 ? labelsAcc : ['Sin datos'], dataAcc.length > 0 ? dataAcc : [0], ['#6366F1', '#3B82F6', '#14B8A6', '#8B5CF6'], chartDashP4, i => chartDashP4 = i);
+
+      const mapaFechas = {};
+      escValidos.forEach(e => {
+        const f = normalizarFechaISO(e.fechaHora) || "Reciente";
+        if (!mapaFechas[f]) mapaFechas[f] = { esc: 0, form: 0 };
+        mapaFechas[f].esc++;
+      });
+      formsValidos.forEach(f => {
+        const fec = normalizarFechaISO(f.fechaHora) || "Reciente";
+        if (!mapaFechas[fec]) mapaFechas[fec] = { esc: 0, form: 0 };
+        mapaFechas[fec].form++;
+      });
+      const fechasOrdenadas = Object.keys(mapaFechas).sort();
+      const labelsFechas = fechasOrdenadas.length > 0 ? fechasOrdenadas : ['Hoy'];
+      const serieEsc = fechasOrdenadas.length > 0 ? fechasOrdenadas.map(k => mapaFechas[k].esc) : [0];
+      const serieForms = fechasOrdenadas.length > 0 ? fechasOrdenadas.map(k => mapaFechas[k].form) : [0];
+
+      const ctxLine = document.getElementById('chartTendenciaLineas').getContext('2d');
+      if (chartDashLine) chartDashLine.destroy();
+      chartDashLine = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: labelsFechas,
+          datasets: [
+            { label: 'Escaneos QR', data: serieEsc, borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.12)', fill: true, tension: 0.3 },
+            { label: 'Respuestas Forms', data: serieForms, borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      const cargos = [...new Set(datosPersonal.map(p => p.cargo))].filter(Boolean).sort();
+      const escPorCargo = [];
+      const formsPorCargo = [];
+      cargos.forEach(c => {
+        const docsCargo = new Set(datosPersonal.filter(p => p.cargo === c).map(p => String(p.doc).trim()));
+        escPorCargo.push(escValidos.filter(e => docsCargo.has(String(e.doc).trim())).length);
+        formsPorCargo.push(formsValidos.filter(f => docsCargo.has(String(f.doc).trim())).length);
+      });
+
+      const ctxCargos = document.getElementById('chartRendimientoCargos').getContext('2d');
+      if (chartDashCargos) chartDashCargos.destroy();
+      chartDashCargos = new Chart(ctxCargos, {
+        type: 'bar',
+        data: {
+          labels: cargos,
+          datasets: [
+            { label: 'Escaneos QR', data: escPorCargo, backgroundColor: '#3B82F6' },
+            { label: 'Forms Recibidos', data: formsPorCargo, backgroundColor: '#10B981' }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      renderizarMuroComentarios('muroComentariosDash', 'contComentariosDash', comentarios);
+    }
+
+    function renderizarMuroComentarios(idContenedor, idContador, lista) {
+      const contenedor = document.getElementById(idContenedor);
+      const contador = document.getElementById(idContador);
+      if (!contenedor) return;
+
+      contador.innerText = `${lista.length} felicitaciones / comentarios`;
+
+      if (lista.length === 0) {
+        contenedor.innerHTML = '<p class="text-xs text-slate-400 italic col-span-full">Aún no se registran comentarios en las encuestas consultadas.</p>';
+        return;
+      }
+
+      contenedor.innerHTML = lista.map(c => `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-xs hover:border-blue-300 transition-colors flex flex-col justify-between">
+          <p class="text-xs text-slate-700 italic font-medium leading-relaxed">"${c.texto}"</p>
+          <div class="mt-2 pt-2 border-t border-slate-200/60 flex justify-between items-center text-[10px]">
+            <span class="font-bold text-blue-900 truncate">${c.profesional}</span>
+            <span class="text-slate-400 font-mono">${c.cargo}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function dibujarGrafico(canvasId, tipo, labels, data, colors, instanciaActual, callbackSet) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if (instanciaActual) instanciaActual.destroy();
+      const config = {
+        type: tipo,
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Total',
+            data: data,
+            backgroundColor: colors,
+            borderColor: tipo === 'line' ? '#1E3A8A' : '#FFFFFF',
+            borderWidth: 2,
+            fill: tipo !== 'line'
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      };
+      if (tipo === 'doughnut') config.options.cutout = '60%';
+      callbackSet(new Chart(ctx, config));
+    }
+
+    function cambiarTipoVistaInforme() {
+      const tipo = document.getElementById('infTipoVista').value;
+      const colCargo = document.getElementById('columnaSelectorCargo');
+      const colProf = document.getElementById('columnaBuscadorProfesional');
+
+      colCargo.classList.add('hidden');
+      colProf.classList.add('hidden');
+
+      if (tipo === "CARGO") {
+        colCargo.classList.remove('hidden');
+      } else if (tipo === "PROFESIONAL") {
+        colProf.classList.remove('hidden');
+      }
+      consultarInformes();
+    }
+
+    function filtrarListaProfesionalesInforme(texto) {
+      const drop = document.getElementById('dropdownProfesionalesInforme');
+      const q = String(texto).toLowerCase().trim();
+
+      const listaOrdenada = [...datosPersonal].sort((a,b) => a.nombre.localeCompare(b.nombre));
+      const coincidencias = q.length === 0
+        ? listaOrdenada
+        : listaOrdenada.filter(p => p.nombre.toLowerCase().includes(q) || String(p.doc).includes(q));
+
+      if (coincidencias.length === 0) {
+        drop.innerHTML = `<div class="p-3 text-xs text-slate-400 text-center">No se encontró ningún colaborador con "${texto}"</div>`;
+      } else {
+        drop.innerHTML = coincidencias.slice(0, 40).map(p => `
+          <div onclick="seleccionarProfesionalInforme('${p.doc}')" class="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer border-b border-slate-100 flex justify-between items-center">
+            <div>
+              <span class="font-bold text-slate-900">${p.nombre}</span>
+              <span class="block text-[10px] text-slate-500">Documento: <strong class="font-mono text-blue-800">${p.doc}</strong></span>
+            </div>
+            <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded border text-slate-600">${p.cargo}</span>
+          </div>
+        `).join('');
+      }
+      drop.classList.remove('hidden');
+
+      const exacto = datosPersonal.find(p => String(p.doc).trim() === q);
+      if (exacto) {
+        document.getElementById('infDocProfesionalSeleccionado').value = exacto.doc;
+      }
+    }
+
+    function seleccionarProfesionalInforme(doc) {
+      const prof = datosPersonal.find(p => String(p.doc).trim() === String(doc).trim());
+      if (prof) {
+        document.getElementById('infInputProfesional').value = `${prof.doc} - ${prof.nombre}`;
+        document.getElementById('infDocProfesionalSeleccionado').value = prof.doc;
+        document.getElementById('dropdownProfesionalesInforme').classList.add('hidden');
+        consultarInformes();
+      }
+    }
+
+    function limpiarProfesionalInforme() {
+      document.getElementById('infInputProfesional').value = '';
+      document.getElementById('infDocProfesionalSeleccionado').value = '';
+      filtrarListaProfesionalesInforme('');
+    }
+
+    function limpiarRangoFechasInforme() {
+      document.getElementById('infFechaDesde').value = '';
+      document.getElementById('infFechaHasta').value = '';
+      consultarInformes();
+    }
+
+    function consultarInformes() {
+      const tipoVista = document.getElementById('infTipoVista').value;
+      const cargoSel = document.getElementById('infSelectorCargo').value;
+      const inputProfTexto = document.getElementById('infInputProfesional').value.trim();
+      let docProfSel = document.getElementById('infDocProfesionalSeleccionado').value.trim();
+
+      if (tipoVista === "PROFESIONAL" && !docProfSel && inputProfTexto) {
+        const q = inputProfTexto.toLowerCase();
+        const hallado = datosPersonal.find(p => String(p.doc).includes(q) || p.nombre.toLowerCase().includes(q));
+        if (hallado) docProfSel = hallado.doc;
+      }
+
+      const fDesde = document.getElementById('infFechaDesde').value;
+      const fHasta = document.getElementById('infFechaHasta').value;
+
+      const personalConsulta = datosPersonal.filter(p => {
+        if (tipoVista === "CARGO") return p.cargo === cargoSel;
+        if (tipoVista === "PROFESIONAL") return docProfSel ? String(p.doc).trim() === String(docProfSel).trim() : true;
+        return true;
+      });
+
+      const setDocsConsulta = new Set(personalConsulta.map(p => String(p.doc).trim()));
+      const escValidos = obtenerEscaneosOficiales();
+      const formsValidos = obtenerFormsOficiales();
+
+      const escFiltrados = escValidos.filter(e => {
+        if (!setDocsConsulta.has(String(e.doc).trim())) return false;
+        if (fDesde || fHasta) {
+          const fIso = normalizarFechaISO(e.fechaHora);
+          if (fDesde && fIso && fIso < fDesde) return false;
+          if (fHasta && fIso && fIso > fHasta) return false;
+        }
+        return true;
+      });
+
+      const formsFiltrados = formsValidos.filter(f => {
+        if (!setDocsConsulta.has(String(f.doc).trim())) return false;
+        if (fDesde || fHasta) {
+          const fIso = normalizarFechaISO(f.fechaHora);
+          if (fDesde && fIso && fIso < fDesde) return false;
+          if (fHasta && fIso && fIso > fHasta) return false;
+        }
+        return true;
+      });
+
+      let txtFiltro = "General Programa";
+      if (tipoVista === "CARGO") txtFiltro = `Cargo / Programa: ${cargoSel}`;
+      if (tipoVista === "PROFESIONAL") {
+        const pObj = datosPersonal.find(x => String(x.doc).trim() === String(docProfSel).trim());
+        txtFiltro = pObj ? `Profesional: ${pObj.nombre} (C.C. ${pObj.doc} - ${pObj.cargo})` : "Profesional Individual";
+      }
+      const txtFechas = (fDesde || fHasta) ? ` | Fechas: ${fDesde || 'Inicio'} a ${fHasta || 'Hoy'}` : " (Historial Completo)";
+      document.getElementById('lblResumenFiltroInforme').innerText = txtFiltro + txtFechas;
+
+      const totalEsc = escFiltrados.length;
+      const totalComp = formsFiltrados.length;
+      const soloScan = Math.max(0, totalEsc - totalComp);
+      const metricas = calcularMetricasEfectividad(totalEsc, formsFiltrados);
+      const semInforme = obtenerEstadoSemaforo(metricas.efForms);
+
+      document.getElementById('infResEscaneos').innerText = totalEsc;
+      document.getElementById('infResSoloScan').innerText = soloScan;
+      document.getElementById('infResForms').innerText = totalComp;
+      document.getElementById('infResP1').innerText = `${metricas.p1Cumple.toFixed(1)}%`;
+      document.getElementById('infResP2').innerText = `${metricas.p2Cumple.toFixed(1)}%`;
+      document.getElementById('infResEfForms').innerText = `${metricas.efForms.toFixed(1)}%`;
+
+      const badgeEst = document.getElementById('badgeEstadoSemaforoInforme');
+      badgeEst.className = `px-3 py-0.5 rounded-full font-extrabold border ${semInforme.clase}`;
+      badgeEst.innerText = `Calidad Global Forms: ${metricas.efForms.toFixed(1)}% (${semInforme.texto})`;
+
+      let p1Si = 0, p1No = 0, p2Sin = 0, p2Con = 0, p3Sin = 0, p3Con = 0;
+      const mapaAcc = {};
+      const comentariosInf = [];
+
+      formsFiltrados.forEach(f => {
+        if (f.p1Tranquila) p1Si++; else p1No++;
+        if (f.p2SinMolestia) p2Sin++; else p2Con++;
+        if (f.p3SinSintomas) p3Sin++; else p3Con++;
+
+        const act = (f.p4Conducta || 'Sin reporte').trim();
+        mapaAcc[act] = (mapaAcc[act] || 0) + 1;
+
+        if (f.p5Comentario && f.p5Comentario.trim().length > 2) {
+          const prof = datosPersonal.find(p => String(p.doc).trim() === String(f.doc).trim());
+          comentariosInf.push({
+            texto: f.p5Comentario.trim(),
+            doc: f.doc,
+            profesional: prof ? prof.nombre : f.doc,
+            cargo: prof ? prof.cargo : '',
+            fecha: f.fechaHora || 'Reciente'
+          });
+        }
+      });
+
+      dibujarGrafico('infChartP1', tipoGraficoSeleccionado, ['Sí (Tranquila)', 'No (Afán)'], [p1Si, p1No], ['#10B981', '#EF4444'], chartInfP1, i => chartInfP1 = i);
+      dibujarGrafico('infChartP2', tipoGraficoSeleccionado, ['Sin molestias', 'Con dolor/molestia'], [p2Sin, p2Con], ['#10B981', '#F59E0B'], chartInfP2, i => chartInfP2 = i);
+      dibujarGrafico('infChartP3', tipoGraficoSeleccionado, ['Sin síntomas', 'Con síntomas'], [p3Sin, p3Con], ['#10B981', '#EC4899'], chartInfP3, i => chartInfP3 = i);
+
+      const labelsA = Object.keys(mapaAcc);
+      const dataA = labelsA.map(k => mapaAcc[k]);
+      dibujarGrafico('infChartP4', 'bar', labelsA.length > 0 ? labelsA : ['Sin datos'], dataA.length > 0 ? dataA : [0], ['#6366F1', '#3B82F6', '#14B8A6'], chartInfP4, i => chartInfP4 = i);
+
+      renderizarTablaConsolidadaCargos(personalConsulta, escFiltrados, formsFiltrados);
+      renderizarMuroComentarios('muroComentariosInf', 'contComentariosInf', comentariosInf);
+
+      rankingActualInformes = personalConsulta.map(p => {
+        const escP = escFiltrados.filter(e => String(e.doc).trim() === String(p.doc).trim()).length;
+        const formsP = formsFiltrados.filter(f => String(f.doc).trim() === String(p.doc).trim());
+        const compP = formsP.length;
+        const mP = calcularMetricasEfectividad(escP, formsP);
+        const semP = obtenerEstadoSemaforo(mP.efForms);
+        return {
+          doc: p.doc,
+          nombre: p.nombre,
+          cargo: p.cargo,
+          esc: escP,
+          comp: compP,
+          p1Cumple: mP.p1Cumple,
+          p2Cumple: mP.p2Cumple,
+          efForms: mP.efForms,
+          sem: semP
+        };
+      });
+
+      filtrarTablaNominalEnVivo();
+    }
+
+    function renderizarTablaConsolidadaCargos(personalBase, escBase, formsBase) {
+      const cargos = [...new Set(personalBase.map(p => p.cargo))].filter(Boolean).sort();
+      const tbody = document.getElementById('cuerpoTablaCargosInforme');
+      tbody.innerHTML = cargos.map(c => {
+        const profsCargo = personalBase.filter(p => p.cargo === c);
+        const setDocs = new Set(profsCargo.map(p => String(p.doc).trim()));
+        const escC = escBase.filter(e => setDocs.has(String(e.doc).trim())).length;
+        const formsC = formsBase.filter(f => setDocs.has(String(f.doc).trim()));
+        const compC = formsC.length;
+        const soloC = Math.max(0, escC - compC);
+        const mC = calcularMetricasEfectividad(escC, formsC);
+        const semC = obtenerEstadoSemaforo(mC.efForms);
+
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-bold text-slate-800">${c}</td>
+            <td class="p-3 text-center font-semibold text-slate-600">${profsCargo.length}</td>
+            <td class="p-3 text-center font-bold text-blue-900">${escC}</td>
+            <td class="p-3 text-center font-semibold text-indigo-700">${soloC}</td>
+            <td class="p-3 text-center font-bold text-emerald-800">${compC}</td>
+            <td class="p-3 text-center font-bold text-sky-700">${mC.p1Cumple.toFixed(0)}%</td>
+            <td class="p-3 text-center font-bold text-teal-700">${mC.p2Cumple.toFixed(0)}%</td>
+            <td class="p-3 text-center font-black text-slate-900">${mC.efForms.toFixed(1)}%</td>
+            <td class="p-3 text-center"><span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${semC.clase}">${semC.texto}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function cumpleFiltroNumerico(valorReal, textoFiltro) {
+      const t = String(textoFiltro).trim();
+      if (!t) return true;
+      const numVal = Number(valorReal);
+      if (t.startsWith('>=')) return numVal >= Number(t.slice(2));
+      if (t.startsWith('<=')) return numVal <= Number(t.slice(2));
+      if (t.startsWith('>')) return numVal > Number(t.slice(1));
+      if (t.startsWith('<')) return numVal < Number(t.slice(1));
+      return String(valorReal).toLowerCase().includes(t.toLowerCase());
+    }
+
+    function filtrarTablaNominalEnVivo() {
+      const fDoc = document.getElementById('fColDoc').value.toLowerCase().trim();
+      const fNom = document.getElementById('fColNombre').value.toLowerCase().trim();
+      const fCar = document.getElementById('fColCargo').value;
+      const fEsc = document.getElementById('fColEsc').value.trim();
+      const fComp = document.getElementById('fColComp').value.trim();
+      const fP1 = document.getElementById('fColP1').value.trim();
+      const fP2 = document.getElementById('fColP2').value.trim();
+      const fEfF = document.getElementById('fColEfForms').value.trim();
+      const fSem = document.getElementById('fColSem').value;
+
+      const filtrados = rankingActualInformes.filter(r => {
+        if (fDoc && !String(r.doc).toLowerCase().includes(fDoc)) return false;
+        if (fNom && !r.nombre.toLowerCase().includes(fNom)) return false;
+        if (fCar && r.cargo !== fCar) return false;
+        if (!cumpleFiltroNumerico(r.esc, fEsc)) return false;
+        if (!cumpleFiltroNumerico(r.comp, fComp)) return false;
+        if (!cumpleFiltroNumerico(r.p1Cumple, fP1)) return false;
+        if (!cumpleFiltroNumerico(r.p2Cumple, fP2)) return false;
+        if (!cumpleFiltroNumerico(r.efForms, fEfF)) return false;
+        if (fSem && r.sem.texto !== fSem) return false;
+        return true;
+      });
+
+      const tbody = document.getElementById('cuerpoTablaRankingInformes');
+      tbody.innerHTML = filtrados.map(r => `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-3 font-mono text-slate-700">${r.doc}</td>
+          <td class="p-3 font-semibold text-slate-900">${r.nombre}</td>
+          <td class="p-3 text-slate-600"><span class="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] border">${r.cargo}</span></td>
+          <td class="p-3 text-center font-bold">${r.esc}</td>
+          <td class="p-3 text-center font-bold">${r.comp}</td>
+          <td class="p-3 text-center font-bold text-sky-700">${r.p1Cumple.toFixed(0)}%</td>
+          <td class="p-3 text-center font-bold text-teal-700">${r.p2Cumple.toFixed(0)}%</td>
+          <td class="p-3 text-center font-black">${r.efForms.toFixed(0)}%</td>
+          <td class="p-3 text-center"><span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${r.sem.clase}">${r.sem.texto}</span></td>
+        </tr>
+      `).join('');
+
+      document.getElementById('contadorTablaNominal').innerText = `Mostrando ${filtrados.length} de ${rankingActualInformes.length} colaboradores`;
+    }
+
+    function limpiarFiltrosColumnasNominal() {
+      ['fColDoc','fColNombre','fColCargo','fColEsc','fColComp','fColP1','fColP2','fColEfForms','fColSem'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      filtrarTablaNominalEnVivo();
+    }
+
+    // CARGA MANUAL Y PERSISTENCIA DE FORMS
+    function cargarArchivoFormsManual(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet);
+          let nuevas = [];
+
+          json.forEach(row => {
+            let docVal = "";
+            let fechaVal = "";
+            let p1Val = "";
+            let p2Val = "";
+            let p3Val = "";
+            let p4Val = "";
+            let p5Val = "";
+
+            for (let key in row) {
+              const k = key.toLowerCase().trim();
+              const val = String(row[key] || '').trim();
+
+              if (k.includes("documento") || k.includes("cedula") || k.includes("cédula") || k.includes("identificación")) {
+                docVal = val.replace(/\D/g, '');
+              }
+              if (k.includes("hora") || k.includes("fecha") || k.includes("finalización") || k.includes("completion")) {
+                if (!fechaVal) fechaVal = val;
+              }
+              if (k.includes("tranquila") || k.includes("afán") || k.includes("afan")) {
+                p1Val = val;
+              }
+              if (k.includes("brazo") || k.includes("aguja") || k.includes("catéter") || k.includes("cateter") || (k.includes("molestia") && k.includes("sitio"))) {
+                p2Val = val;
+              }
+              if (k.includes("generales") || (k.includes("síntoma") && !k.includes("hizo")) || (k.includes("sintoma") && !k.includes("hizo"))) {
+                p3Val = val;
+              }
+              if (k.includes("hizo") || k.includes("conducta") || k.includes("actuó") || k.includes("actuo")) {
+                p4Val = val;
+              }
+              if (k.includes("comentario") || k.includes("felicitación") || k.includes("felicitacion") || k.includes("mensaje")) {
+                p5Val = val;
+              }
+            }
+
+            if (docVal) {
+              const p1Tranquila = p1Val.toUpperCase().startsWith("SI") || p1Val.toUpperCase().startsWith("SÍ");
+              const p2Limpia = p2Val.toUpperCase();
+              const p2SinMolestia = (!p2Val || p2Limpia.includes("NINGUN") || p2Limpia === "NO" || p2Limpia.includes("NO TUVE"));
+              const p3Limpia = p3Val.toUpperCase();
+              const p3SinSintomas = (!p3Val || p3Limpia.includes("NINGUN") || p3Limpia === "NO" || p3Limpia.includes("NO TUVE"));
+
+              nuevas.push({
+                doc: docVal,
+                fechaHora: fechaVal,
+                p1Raw: p1Val,
+                p1Tranquila: p1Tranquila,
+                p2Raw: p2Val,
+                p2SinMolestia: p2SinMolestia,
+                p3Raw: p3Val,
+                p3SinSintomas: p3SinSintomas,
+                p4Conducta: p4Val || 'Sin reporte',
+                p5Comentario: p5Val || ''
+              });
+            }
+          });
+
+          if (nuevas.length > 0) {
+            datosForms = nuevas;
+            localStorage.setItem("PUSH_SURA_FORMS_DATA", JSON.stringify(datosForms));
+            actualizarTodoElSistema();
+            alert(`¡Actualización exitosa! Se cargaron y guardaron ${datosForms.length} encuestas oficiales de Forms.`);
+          } else {
+            alert("El archivo no contenía registros legibles con números de documento.");
+          }
+        } catch(err) {
+          alert("Error al procesar el archivo de Forms: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function descargarImagenCanvas(canvasId, nombreArchivo) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const ctx = tempCanvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      ctx.drawImage(canvas, 0, 0);
+      const link = document.createElement('a');
+      link.download = nombreArchivo;
+      link.href = tempCanvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function descargarCapturaInforme() {
+      const area = document.getElementById('areaCapturaInforme');
+      html2canvas(area, { scale: 2, backgroundColor: '#F8FAFC' }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'Informe_Visual_Tecnica_PUSH.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+
+    function exportarExcelInformes() {
+      const rows = rankingActualInformes.map(r => ({
+        "Documento": r.doc,
+        "Nombre y Apellido": r.nombre,
+        "Cargo / Programa": r.cargo,
+        "Escaneos QR": r.esc,
+        "Encuestas Forms": r.comp,
+        "Tranquilidad P1 (%)": `${r.p1Cumple}%`,
+        "Sin Molestias P2 (%)": `${r.p2Cumple}%`,
+        "Calidad Global Forms (%)": `${r.efForms}%`,
+        "Semáforo": r.sem.texto
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Informe_PUSH");
+      XLSX.writeFile(wb, "Informe_Estadistico_PUSH_SURA.xlsx");
+    }
+
+    function poblarSelectProfesionalesQr() {
+      const sel = document.getElementById('selectProfesionalQr');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Buscar colaborador existente para ver su QR --</option>';
+      [...datosPersonal].sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.doc;
+        opt.textContent = `${p.doc} - ${p.nombre} (${p.cargo})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function seleccionarProfesionalParaQr() {
+      const doc = document.getElementById('selectProfesionalQr').value;
+      const prof = datosPersonal.find(p => String(p.doc).trim() === String(doc).trim());
+      if (prof) {
+        document.getElementById('qrDocumento').value = prof.doc;
+        document.getElementById('qrNombre').value = prof.nombre;
+        document.getElementById('qrCargo').value = prof.cargo;
+        generarCodigoQR();
+      }
+    }
+
+    function generarCodigoQR() {
+      const doc = document.getElementById('qrDocumento').value.trim();
+      const nombre = document.getElementById('qrNombre').value.trim().toUpperCase();
+      const cargo = document.getElementById('qrCargo').value.trim();
+      const contenedor = document.getElementById('contenedorQrCanvas');
+
+      if (!doc || !nombre || !cargo) {
+        alert("Atención: Todos los campos (Cédula, Nombre Completo y Cargo/Programa) son obligatorios.");
+        return;
+      }
+
+      const idx = datosPersonal.findIndex(p => String(p.doc).trim() === doc);
+      if (idx >= 0) {
+        datosPersonal[idx].nombre = nombre;
+        datosPersonal[idx].cargo = cargo;
+      } else {
+        datosPersonal.push({ doc, nombre, cargo, activo: true });
+      }
+      localStorage.setItem("PUSH_SURA_PERSONAL_DATA", JSON.stringify(datosPersonal));
+
+      contenedor.innerHTML = "";
+      new QRCode(contenedor, { text: `${URL_BASE_ESCANEO}${doc}`, width: 180, height: 180 });
+      document.getElementById('qrEtiquetaNombre').innerText = `${nombre} (C.C. ${doc})`;
+      document.getElementById('qrEtiquetaCargo').innerText = cargo;
+      document.getElementById('btnDescargarQr').classList.remove('hidden');
+
+      poblarSelectProfesionalesQr();
+      renderizarTablaQRs();
+      actualizarTodoElSistema();
+    }
+
+    function descargarPlantillaMasivaQR() {
+      const datosEjemplo = [
+        { "DOCUMENTO": "1017000001", "NOMBRE Y APELLIDO": "EJEMPLO COLABORADOR", "CARGO": "AGUDOS RUTA" }
+      ];
+      const cargosRef = CARGOS_OFICIALES.map(c => ({ "PROGRAMAS / CARGOS OFICIALES": c }));
+
+      const wsPlantilla = XLSX.utils.json_to_sheet(datosEjemplo);
+      const wsCargos = XLSX.utils.json_to_sheet(cargosRef);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsPlantilla, "Plantilla_Personal_QR");
+      XLSX.utils.book_append_sheet(wb, wsCargos, "Programas_Permitidos");
+      XLSX.writeFile(wb, "Plantilla_Oficial_Carga_Masiva_QR_PUSH.xlsx");
+    }
+
+    function cargarExcelMasivo(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet);
+          let agregados = 0;
+
+          rows.forEach(r => {
+            const doc = String(r["DOCUMENTO"] || r["Documento"] || "").trim();
+            const nom = String(r["NOMBRE Y APELLIDO"] || r["Nombre"] || "").trim().toUpperCase();
+            let car = String(r["CARGO"] || r["PROGRAMA"] || r["Cargo"] || r["Programa"] || "").trim().toUpperCase();
+
+            if (!doc || !nom || !car || doc === "1017000001") return;
+            if (!CARGOS_OFICIALES.includes(car)) car = "AGUDOS RUTA";
+
+            const existe = datosPersonal.findIndex(p => String(p.doc).trim() === doc);
+            if (existe >= 0) {
+              datosPersonal[existe].nombre = nom;
+              datosPersonal[existe].cargo = car;
+            } else {
+              datosPersonal.push({ doc, nombre: nom, cargo: car, activo: true });
+              agregados++;
+            }
+          });
+
+          localStorage.setItem("PUSH_SURA_PERSONAL_DATA", JSON.stringify(datosPersonal));
+          inicializarSelectoresCargos();
+          poblarSelectProfesionalesQr();
+          renderizarTablaQRs();
+          actualizarTodoElSistema();
+          alert(`¡Carga finalizada! Se procesaron y validaron los colaboradores con sus programas oficiales.`);
+        } catch(err) {
+          alert("Error al leer la plantilla Excel: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function descargarImagenQR() {
+      const doc = document.getElementById('qrDocumento').value.trim() || 'PUSH';
+      const img = document.querySelector('#contenedorQrCanvas img') || document.querySelector('#contenedorQrCanvas canvas');
+      if (!img) return;
+      const link = document.createElement('a');
+      link.download = `QR_${doc}.png`;
+      link.href = img.src || img.toDataURL('image/png');
+      link.click();
+    }
+
+    function renderizarTablaQRs() {
+      const cuerpo = document.getElementById('cuerpoTablaQRs');
+      if (!cuerpo) return;
+      document.getElementById('lblTotalBaseQr').innerText = `${datosPersonal.length} Profesionales Oficiales`;
+      cuerpo.innerHTML = [...datosPersonal].sort((a,b) => a.nombre.localeCompare(b.nombre)).map(p => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono">${p.doc}</td>
+          <td class="p-3 font-semibold">${p.nombre}</td>
+          <td class="p-3 text-slate-600">${p.cargo}</td>
+          <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ACTIVO</span></td>
+          <td class="p-3 text-center">
+            <button onclick="descargarQRPersonal('${p.doc}')" class="bg-blue-50 hover:bg-blue-100 text-blue-800 px-2.5 py-1 rounded border border-blue-200 text-xs font-semibold">
+              <i class="fa-solid fa-download mr-1"></i>Descargar QR
+            </button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function descargarQRPersonal(doc) {
+      const div = document.createElement('div');
+      new QRCode(div, { text: `${URL_BASE_ESCANEO}${doc}`, width: 300, height: 300 });
+      setTimeout(() => {
+        const img = div.querySelector('img') || div.querySelector('canvas');
+        const link = document.createElement('a');
+        link.download = `QR_${doc}.png`;
+        link.href = img.src || img.toDataURL('image/png');
+        link.click();
+      }, 200);
+    }
+
+    // SINCRONIZACIÓN OFICIAL GOOGLE SHEETS
+    function recargarDatos(mostrarAlerta = true) {
+      const urlConAntiCache = `${URL_SHEETS_CSV_BASE}&t=${new Date().getTime()}`;
+
+      Papa.parse(urlConAntiCache, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(res) {
+          if (res.data && res.data.length > 0) {
+            datosEscaneos = res.data
+              .map((r, i) => ({
+                idScan: String(i + 1),
+                doc: String(r["Documento Colaborador"] || r.doc || '').trim(),
+                fechaHora: r["Fecha y Hora"] || r["Marca temporal"] || r.fecha || '',
+                estado: r["Estado"] || ''
+              }))
+              .filter(x => x.doc && x.doc.toLowerCase() !== 'no especificado');
+          } else {
+            datosEscaneos = [];
+          }
+
+          actualizarTodoElSistema();
+
+          if (mostrarAlerta) {
+            const val = obtenerEscaneosOficiales().length;
+            alert(`¡Sincronización con Google Sheets completada! Se registran ${val} escaneos oficiales válidos.`);
+          }
+        },
+        error: function(err) {
+          console.error("Error al descargar CSV de Google Sheets:", err);
+          if (mostrarAlerta) {
+            alert("Error al sincronizar con Google Sheets: " + (err.message || err));
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
