@@ -2763,7 +2763,110 @@
 
       const leg = document.getElementById(idLeyenda);
       if (leg) {
-        leg.innerHTML = labels.map((    function renderizarInformeEjecutivo() {
+        leg.innerHTML = labels.map((l, idx) => {
+          const val = data[idx] || 0;
+          const porc = ((val / total) * 100).toFixed(0);
+          const color = colors[idx % colors.length];
+          return `
+            <div class="flex items-start justify-between gap-2 text-[11px] leading-snug">
+              <span class="flex items-start gap-1.5 min-w-0">
+                <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0 mt-1" style="background-color: ${color}"></span>
+                <span class="font-medium break-words">${l}</span>
+              </span>
+              <span class="font-bold text-slate-800 font-mono shrink-0">${val} (${porc}%)</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function filtrarComentariosDashboard() {
+      const prog = document.getElementById('filtroComentariosPrograma')?.value || '';
+      const tipoFiltro = document.getElementById('filtroTipoComentarioDash')?.value || 'TODOS';
+      const formsValidos = obtenerFormsOficiales();
+      const positivos = [];
+      const negativos = [];
+
+      formsValidos.forEach(f => {
+        const txt = (f.p5Comentario || '').trim();
+        if (!txt) return;
+        const prof = datosPersonal.find(p => String(p.doc).trim() === String(f.doc).trim());
+        if (prog && (!prof || prof.cargo !== prog)) return;
+
+        const sentimiento = clasificarSentimientoComentario(txt);
+        if (sentimiento === 'NEUTRO_VACIO') return;
+
+        const item = {
+          texto: txt,
+          doc: f.doc,
+          profesional: prof ? prof.nombre : f.doc,
+          cargo: prof ? prof.cargo : '',
+          fecha: f.fechaHora || 'Reciente',
+          sentimiento
+        };
+
+        if (sentimiento === 'NEGATIVO') {
+          negativos.push(item);
+        } else {
+          positivos.push(item);
+        }
+      });
+
+      document.getElementById('contComentariosDash').innerText = `${positivos.length} positivos`;
+      document.getElementById('contComentariosNegDash').innerText = `${negativos.length} negativos`;
+
+      const bloqueNeg = document.getElementById('bloqueNegativosDash');
+      if (negativos.length > 0 && (tipoFiltro === 'TODOS' || tipoFiltro === 'NEGATIVO')) {
+        bloqueNeg.classList.remove('hidden');
+        renderizarTarjetasComentarios('muroComentariosNegDash', negativos, true);
+      } else {
+        bloqueNeg.classList.add('hidden');
+      }
+
+      const contPos = document.getElementById('muroComentariosDash');
+      if (tipoFiltro === 'NEGATIVO') {
+        contPos.innerHTML = '<p class="text-xs text-slate-400 italic col-span-full">Mostrando únicamente los comentarios negativos arriba.</p>';
+      } else {
+        renderizarTarjetasComentarios('muroComentariosDash', positivos, false);
+      }
+    }
+
+    function renderizarTarjetasComentarios(idContenedor, lista, esNegativo) {
+      const contenedor = document.getElementById(idContenedor);
+      if (!contenedor) return;
+
+      if (lista.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-slate-400 italic col-span-full">${esNegativo ? 'No se detectan comentarios negativos.' : 'Aún no se registran comentarios positivos para esta selección.'}</p>`;
+        return;
+      }
+
+      contenedor.innerHTML = lista.map(c => `
+        <div class="${esNegativo ? 'bg-white border-rose-300' : 'bg-slate-50 border-slate-200'} border rounded-xl p-3 shadow-2xs flex flex-col justify-between">
+          <div class="flex justify-between items-start gap-2 mb-1">
+            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${esNegativo ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+              ${esNegativo ? '⚠️ Alerta / Mejora' : '😊 Favorable'}
+            </span>
+            <span class="text-[10px] text-slate-400 font-mono">${c.fecha}</span>
+          </div>
+          <p class="text-xs text-slate-700 italic font-medium leading-relaxed">"${c.texto}"</p>
+          <div class="mt-2 pt-2 border-t border-slate-200/60 flex justify-between items-center text-[10px]">
+            <span class="font-bold text-blue-900 truncate">${c.profesional}</span>
+            <span class="text-slate-400 font-mono">${c.cargo}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function refrescarInformeEjecutivo() {
+      actualizarTodoElSistema();
+      const btnIcon = document.querySelector('#vistaEjecutivo button[onclick="refrescarInformeEjecutivo()"] i');
+      if (btnIcon) {
+        btnIcon.classList.add('fa-spin');
+        setTimeout(() => btnIcon.classList.remove('fa-spin'), 600);
+      }
+    }
+
+    function renderizarInformeEjecutivo() {
       const formsAll = obtenerFormsOficiales();
       const forms = filtrarListaPorRangoFechas(formsAll, 'ejecFechaDesde', 'ejecFechaHasta');
 
@@ -2941,70 +3044,6 @@
         badgeViab.className = "px-3 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-700 border border-slate-300";
         badgeViab.innerText = "PENDIENTE DE CARGA DE FORMS";
         txtViab.innerText = "Carga el archivo de encuestas Forms para evaluar si la aplicación mediante técnica PUSH es viable y segura según lo reportado por los pacientes.";
-      } else if (calidadGlobal >= 95 && segProc >= 93) {
-        cardViab.className = "bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-4 md:p-5 flex flex-col lg:flex-row items-center justify-between gap-4";
-        iconViab.className = "w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 text-2xl";
-        badgeViab.className = "px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300";
-        badgeViab.innerText = "✅ VIABLE Y SEGURA PARA ADMINISTRACIÓN DOMICILIARIA";
-        txtViab.innerText = `Sobre ${totalForms} encuestas Forms, el ${segProc.toFixed(1)}% reportó ausencia de eventos locales/sistémicos y el ${pctP1.toFixed(1)}% aplicación tranquila sin afán, respaldando la viabilidad y seguridad de la técnica PUSH.`;
-      } else if (calidadGlobal >= 80) {
-        cardViab.className = "bg-white rounded-2xl border-2 border-amber-300 shadow-sm p-4 md:p-5 flex flex-col lg:flex-row items-center justify-between gap-4";
-        iconViab.className = "w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-2xl";
-        badgeViab.className = "px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300";
-        badgeViab.innerText = "⚠️ VIABLE CON SEGUIMIENTO A MOLESTIAS REPORTADAS";
-        txtViab.innerText = `Sobre ${totalForms} encuestas Forms, la tolerabilidad clínica alcanza el ${segProc.toFixed(1)}%: la técnica es viable en domicilio con seguimiento preventivo a las molestias locales o síntomas reportados.`;
-      } else {
-        cardViab.className = "bg-white rounded-2xl border-2 border-rose-300 shadow-sm p-4 md:p-5 flex flex-col lg:flex-row items-center justify-between gap-4";
-        iconViab.className = "w-14 h-14 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0 text-2xl";
-        badgeViab.className = "px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-900 border border-rose-300";
-        badgeViab.innerText = "🚨 REQUIERE REVISIÓN CLÍNICA PRIORITARIA";
-        txtViab.innerText = `En las ${totalForms} encuestas Forms evaluadas, la seguridad clínica (${segProc.toFixed(1)}%) requiere revisión técnica inmediata sobre dilución, tiempos de infusión y molestias referidas.`;
-      }
-
-      const renderBarrasEjec = (idCont, mapa, totalBase, colorBar) => {
-        const el = document.getElementById(idCont);
-        const keys = Object.keys(mapa).sort((a, b) => mapa[b] - mapa[a]).slice(0, 5);
-        if (keys.length === 0 || totalBase === 0) {
-          el.innerHTML = '<p class="text-slate-400 italic">Sin registros para este período.</p>';
-          return;
-        }
-        el.innerHTML = keys.map(k => {
-          const c = mapa[k];
-          const pct = Math.min(100, (c / totalBase) * 100);
-          return `
-            <div class="space-y-1">
-              <div class="flex justify-between text-xs md:text-sm font-bold text-slate-800">
-                <span class="truncate pr-2">${k}</span>
-                <span class="font-mono font-extrabold text-[#0033a0] shrink-0">${c} (${pct.toFixed(1)}%)</span>
-              </div>
-              <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full rounded-full" style="width:${pct}%; background-color:${colorBar}"></div>
-              </div>
-            </div>
-          `;
-        }).join('');
-      };
-
-      renderBarrasEjec('ejecListaMedicamentos', conteoMeds, totalDosisForms || totalForms, '#007a99');
-      renderBarrasEjec('ejecListaConducta', conteoConducta, totalForms, '#0033a0');
-      renderBarrasEjec('ejecListaMolestiasLocales', conteoMolestias, totalForms, '#0284c7');
-      renderBarrasEjec('ejecListaSintomasGenerales', conteoSintomas, totalForms, '#0d9488');
-
-      const elDest = document.getElementById('ejecListaDestacados');
-      if (destacados.length === 0) {
-        elDest.innerHTML = '<p class="text-slate-400 italic">Aún no hay comentarios destacados en este rango.</p>';
-      } else {
-        const unicos = [...new Set(destacados)].slice(0, 4);
-        elDest.innerHTML = unicos.map(txt => `
-          <div class="flex items-start gap-2.5 bg-blue-50/80 border border-blue-100 rounded-xl p-2.5">
-            <i class="fa-solid fa-circle-check text-[#007a99] mt-1 shrink-0"></i>
-            <span class="italic font-semibold text-slate-800 leading-snug">"${txt}"</span>
-          </div>
-        `).join('');
-      }
-    }
-
- reportado por los pacientes.";
       } else if (calidadGlobal >= 95 && segProc >= 93) {
         cardViab.className = "bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-4 md:p-5 flex flex-col lg:flex-row items-center justify-between gap-4";
         iconViab.className = "w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 text-2xl";
